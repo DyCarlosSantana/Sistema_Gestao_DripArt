@@ -41,9 +41,10 @@ def gerar_orcamento_pdf(orcamento, itens, config, logo_path=None):
         Paragraph(f"<b>{config.get('empresa_nome','DripArt')}</b>", title_style),
         Paragraph(
             f"{config.get('empresa_cnpj','')}<br/>"
-            f"{config.get('empresa_telefone','')}<br/>"
+            f"{('Tel: ' + config['empresa_telefone']) if config.get('empresa_telefone') else ''}<br/>"
+            f"{('WA: ' + config['empresa_whatsapp']) if config.get('empresa_whatsapp') else ''}<br/>"
             f"{config.get('empresa_email','')}<br/>"
-            f"{config.get('empresa_endereco','')}",
+            f"{('@' + config['empresa_instagram']) if config.get('empresa_instagram') else ''}",
             ParagraphStyle('info_right', fontSize=8, textColor=GRAY, alignment=TA_RIGHT)
         )
     ]]
@@ -178,7 +179,11 @@ def gerar_nota_venda_pdf(venda, itens, config):
         Paragraph(f"<b>{config.get('empresa_nome','DripArt')}</b>",
                   ParagraphStyle('th', fontSize=20, textColor=PURPLE, fontName='Helvetica-Bold')),
         Paragraph(
-            f"{config.get('empresa_cnpj','')}<br/>{config.get('empresa_telefone','')}<br/>{config.get('empresa_email','')}",
+            f"{config.get('empresa_cnpj','')}<br/>"
+            f"{config.get('empresa_telefone','')}"
+            f"{(' · WA: ' + config['empresa_whatsapp']) if config.get('empresa_whatsapp') else ''}<br/>"
+            f"{config.get('empresa_email','')}"
+            f"{(' · @' + config['empresa_instagram']) if config.get('empresa_instagram') else ''}",
             ParagraphStyle('tr', fontSize=8, textColor=GRAY, alignment=TA_RIGHT)
         )
     ]]

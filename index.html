@@ -328,6 +328,18 @@ select.form-control { cursor: pointer; }
         </div>
       </div>
 
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div class="card-title" style="margin:0">Evolução dos últimos 6 meses</div>
+        </div>
+        <div id="chart-evolucao" style="display:flex;align-items:flex-end;gap:6px;height:120px;padding:0 4px"></div>
+        <div style="display:flex;gap:16px;margin-top:8px;font-size:11px">
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--purple);display:inline-block"></span>Receita</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--coral);display:inline-block"></span>Despesas</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--teal);display:inline-block"></span>Saldo</span>
+        </div>
+      </div>
+
       <div class="two-col-grid">
         <div class="card">
           <div class="card-title">Receita por categoria</div>
@@ -377,9 +389,10 @@ select.form-control { cursor: pointer; }
         <button class="btn btn-primary" onclick="openModal('modal-locacao')">+ Nova locação</button>
       </div>
       <div class="filters-bar">
-        <button class="btn btn-sm" onclick="loadLocacoes('')">Todas</button>
-        <button class="btn btn-sm" onclick="loadLocacoes('ativo')">Ativas</button>
-        <button class="btn btn-sm" onclick="loadLocacoes('devolvido')">Devolvidas</button>
+        <input type="text" id="q-locacoes" class="form-control" placeholder="Buscar por cliente..." style="width:220px" oninput="filterLocacoes()">
+        <button class="btn btn-sm" onclick="loadLocacoes('')" id="loc-filtro-todos" style="background:var(--purple-light);color:var(--purple)">Todas</button>
+        <button class="btn btn-sm" onclick="loadLocacoes('ativo')" id="loc-filtro-ativo">Ativas</button>
+        <button class="btn btn-sm" onclick="loadLocacoes('devolvido')" id="loc-filtro-dev">Devolvidas</button>
       </div>
       <div class="card">
         <div class="table-wrap">
@@ -401,6 +414,15 @@ select.form-control { cursor: pointer; }
       <div class="page-header">
         <div class="page-title">Orçamentos</div>
         <button class="btn btn-primary" onclick="openModal('modal-orcamento')">+ Novo orçamento</button>
+      </div>
+      <div class="filters-bar">
+        <input type="text" id="q-orcamentos" class="form-control" placeholder="Buscar por cliente ou número..." style="width:260px" oninput="filterOrcamentos()">
+        <select id="filtro-status-orc" class="form-control" style="width:140px" onchange="filterOrcamentos()">
+          <option value="">Todos os status</option>
+          <option value="aberto">Abertos</option>
+          <option value="aprovado">Aprovados</option>
+          <option value="recusado">Recusados</option>
+        </select>
       </div>
       <div class="card">
         <div class="table-wrap">
@@ -430,6 +452,18 @@ select.form-control { cursor: pointer; }
         <button class="btn btn-primary" onclick="loadRelatorio()">Gerar relatório</button>
         <button class="btn" id="btn-export-rel" style="display:none" onclick="exportarRelatorio()">📄 Exportar PDF</button>
       </div>
+      <div id="relatorio-grafico" style="display:none;margin-bottom:16px">
+        <div class="two-col-grid">
+          <div class="card">
+            <div class="card-title">Receita por tipo</div>
+            <div id="grafico-receita" style="display:flex;flex-direction:column;gap:6px"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Despesas por categoria</div>
+            <div id="grafico-despesas" style="display:flex;flex-direction:column;gap:6px"></div>
+          </div>
+        </div>
+      </div>
       <div id="relatorio-content">
         <div style="color:var(--text-muted);text-align:center;padding:48px">Selecione o período e clique em Gerar relatório.</div>
       </div>
@@ -440,6 +474,18 @@ select.form-control { cursor: pointer; }
       <div class="page-header">
         <div class="page-title">Clientes</div>
         <button class="btn btn-primary" onclick="openModal('modal-cliente')">+ Novo cliente</button>
+      </div>
+      <!-- Top clientes -->
+      <div class="card" style="margin-bottom:16px" id="card-top-clientes">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="card-title" style="margin:0">Top clientes</div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-sm" id="top-btn-mes" onclick="loadTopClientes('mes')" style="background:var(--purple-light);color:var(--purple)">Mês</button>
+            <button class="btn btn-sm" id="top-btn-ano" onclick="loadTopClientes('ano')">Ano</button>
+            <button class="btn btn-sm" id="top-btn-tudo" onclick="loadTopClientes('tudo')">Total</button>
+          </div>
+        </div>
+        <div id="top-clientes-lista" style="font-size:13px;color:var(--text-muted)">Carregando...</div>
       </div>
       <div class="filters-bar">
         <input type="text" id="q-clientes" class="form-control" placeholder="Buscar por nome..." style="width:260px" oninput="loadClientes()">
@@ -553,7 +599,8 @@ select.form-control { cursor: pointer; }
     <div class="page" id="page-encomendas">
       <div class="page-header">
         <div class="page-title">Encomendas</div>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" id="q-encomendas" class="form-control" placeholder="Buscar por cliente..." style="width:200px" oninput="filterEncomendas()">
           <button class="btn" onclick="loadEncomendas('todas')">Ver todas</button>
           <button class="btn btn-primary" onclick="openModal('modal-encomenda')">+ Nova encomenda</button>
         </div>
@@ -703,6 +750,20 @@ select.form-control { cursor: pointer; }
             <label class="form-label">Endereço</label>
             <input type="text" id="cfg-endereco" class="form-control">
           </div>
+          <div class="form-grid form-grid-3">
+            <div class="form-group">
+              <label class="form-label">WhatsApp</label>
+              <input type="text" id="cfg-whatsapp" class="form-control" placeholder="(99) 99999-9999">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Instagram</label>
+              <input type="text" id="cfg-instagram" class="form-control" placeholder="dripart">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Site</label>
+              <input type="text" id="cfg-site" class="form-control" placeholder="www.dripart.com.br">
+            </div>
+          </div>
           <div class="form-group">
             <label class="form-label">Validade padrão de orçamentos (dias)</label>
             <input type="number" id="cfg-validade" class="form-control" value="7">
@@ -716,6 +777,18 @@ select.form-control { cursor: pointer; }
             <div id="logo-preview" style="margin-top:8px"></div>
           </div>
           <button class="btn btn-primary" onclick="salvarConfig()">Salvar configurações</button>
+        </div>
+      </div>
+      <div class="card" style="max-width:560px;margin-top:16px">
+        <div class="card-title">Backup do sistema</div>
+        <div class="form-grid">
+          <div style="font-size:13px;color:var(--text-muted)">O banco de dados é salvo automaticamente ao iniciar. Você também pode criar um backup manual a qualquer momento.</div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <button class="btn btn-primary" onclick="fazerBackupManual()" id="btn-backup">Criar backup agora</button>
+            <span id="backup-msg" style="font-size:12px;color:var(--text-muted)"></span>
+          </div>
+          <div id="lista-backups" style="font-size:12px;color:var(--text-muted)">Carregando backups...</div>
+        </div>
         </div>
       </div>
     </div>
@@ -856,6 +929,7 @@ select.form-control { cursor: pointer; }
         <div style="font-size:12px;font-weight:500;color:var(--text-muted);margin-bottom:10px">
           Adicionar item/kit — <span id="loc-dias-label" style="color:var(--purple)">0 dias</span>
         </div>
+        <div id="disponibilidade-box" style="display:none;background:var(--bg2);border-radius:6px;padding:6px 10px;margin-bottom:8px;font-size:12px" id="disp-box"></div>
         <div class="form-grid form-grid-3">
           <div class="form-group">
             <label class="form-label">Item / Kit</label>
@@ -1645,9 +1719,25 @@ async function loadItensParaSelect() {
     kits.forEach(k => { const o = document.createElement('option'); o.value=`kit:${k.id}:${k.preco_total}`; o.textContent=k.nome; og2.appendChild(o); });
     sel.appendChild(og2);
   }
-  sel.onchange = () => {
+  sel.onchange = async () => {
     const parts = sel.value.split(':');
-    if (parts.length === 3) document.getElementById('loc-item-preco').value = parseFloat(parts[2]).toFixed(2);
+    if (parts.length === 3) {
+      document.getElementById('loc-item-preco').value = parseFloat(parts[2]).toFixed(2);
+      const tipo = parts[0], itemId = parts[1];
+      const dispBox = document.getElementById('disponibilidade-box');
+      if (tipo === 'item') {
+        const ini = document.getElementById('loc-retirada').value;
+        const fim = document.getElementById('loc-devolucao').value;
+        if (ini && fim) {
+          const d = await fetch(`${API}/itens-locacao/${itemId}/disponibilidade?data_ini=${ini}&data_fim=${fim}`).then(r=>r.json()).catch(()=>null);
+          if (d) {
+            const cor = d.disponivel === 0 ? 'var(--coral)' : d.disponivel <= 2 ? 'var(--amber)' : 'var(--teal)';
+            dispBox.style.display = '';
+            dispBox.innerHTML = `<span style="color:${cor};font-weight:500">${d.disponivel}/${d.total} disponíveis</span> no período · ${d.em_uso} em uso`;
+          }
+        } else { dispBox.style.display = 'none'; }
+      } else { dispBox.style.display = 'none'; }
+    }
   };
 }
 
@@ -1742,6 +1832,7 @@ async function loadOrcamentos() {
       <td style="display:flex;gap:6px">
         <button class="btn btn-sm" onclick="window.open('${API}/orcamentos/${o.id}/pdf','_blank')">📄 PDF</button>
         ${o.status==='aberto'?`<button class="btn btn-sm btn-success" onclick="aprovarOrc(${o.id})">Aprovar</button>`:''}
+        ${o.status==='aprovado'?`<button class="btn btn-sm" style="background:var(--teal);color:white;border-color:var(--teal)" onclick="converterOrcVenda(${o.id})">💰 Gerar venda</button>`:''}
         <button class="btn btn-sm" onclick="editarOrcamentoById(${o.id})">Editar</button>
         <button class="btn btn-sm btn-danger" onclick="excluirOrcamento(${o.id})">Excluir</button>
       </td>
@@ -2240,6 +2331,7 @@ async function loadEncomendas(filtro) {
         <div style="font-size:11px;color:${prazoColor};margin-bottom:8px">${prazoLabel}${atrasada?' ⚠ ATRASADA':''}</div>
         <div style="display:flex;gap:5px;flex-wrap:wrap">
           ${nextStatus ? `<button class="btn btn-sm btn-success" style="font-size:11px" onclick="avancarEncomenda(${e.id},'${nextStatus}')">→ ${STATUS_ENC_LABEL[nextStatus]}</button>` : ''}
+          ${e.status==='pronto' ? `<button class="btn btn-sm" style="font-size:11px;background:var(--teal);color:white;border-color:var(--teal)" onclick="entregarEGerarVenda(${e.id})">💰 Entregar + Venda</button>` : ''}
           <button class="btn btn-sm" style="font-size:11px" onclick="editarEncById(${e.id})">Editar</button>
         </div>
       </div>`;
@@ -2800,6 +2892,355 @@ loadRelatorio = async function() {
   await _loadRelatorioOriginal();
   const btn = document.getElementById('btn-export-rel');
   if (btn) btn.style.display = '';
+};
+
+
+// ─── BUSCA EM LOCAÇÕES, ORÇAMENTOS E ENCOMENDAS ───────────────────────────────
+let _locacoesCache = [], _orcamentosCache = [], _encomendasCache = [];
+
+function filterLocacoes() {
+  const q = (document.getElementById('q-locacoes')?.value || '').toLowerCase();
+  const rows = _locacoesCache.filter(l => !q || l.cliente_nome.toLowerCase().includes(q));
+  renderLocacoesTabela(rows);
+}
+
+function filterOrcamentos() {
+  const q = (document.getElementById('q-orcamentos')?.value || '').toLowerCase();
+  const st = document.getElementById('filtro-status-orc')?.value || '';
+  const rows = _orcamentosCache.filter(o =>
+    (!q || o.cliente_nome.toLowerCase().includes(q) || o.numero.toLowerCase().includes(q)) &&
+    (!st || o.status === st)
+  );
+  renderOrcamentosTabela(rows);
+}
+
+function filterEncomendas() {
+  const q = (document.getElementById('q-encomendas')?.value || '').toLowerCase();
+  renderKanban(_encomendasCache.filter(e => !q || e.cliente_nome.toLowerCase().includes(q)));
+}
+
+// ─── ORÇAMENTO → VENDA ────────────────────────────────────────────────────────
+async function converterOrcVenda(id) {
+  const orc = _store.orcamentos && _store.orcamentos[id];
+  const nome = orc ? orc.numero : `#${id}`;
+  const forma = prompt(`Forma de pagamento para o orçamento ${nome}:
+dinheiro / pix / cartao_debito / cartao_credito / fiado`, 'pix');
+  if (forma === null) return;
+  const res = await fetch(`${API}/orcamentos/${id}/converter`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({forma_pagamento: forma || 'dinheiro'})
+  });
+  if (res.ok) {
+    const d = await res.json();
+    toast(`Venda #${d.venda.id} criada com sucesso!`, 'success');
+    loadOrcamentos();
+    loadDashboard();
+  } else toast('Erro ao converter orçamento', 'error');
+}
+
+// ─── ENCOMENDA → VENDA ────────────────────────────────────────────────────────
+async function entregarEGerarVenda(id) {
+  const enc = _store.encomendas && _store.encomendas[id];
+  const nome = enc ? enc.numero : `#${id}`;
+  if (!confirm(`Marcar encomenda ${nome} como entregue e gerar venda automaticamente?`)) return;
+  const forma = prompt('Forma de pagamento:
+dinheiro / pix / cartao_debito / cartao_credito / fiado', 'pix');
+  if (forma === null) return;
+  const res = await fetch(`${API}/encomendas/${id}/converter`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({forma_pagamento: forma || 'dinheiro'})
+  });
+  if (res.ok) {
+    const d = await res.json();
+    toast(`Entregue! Venda #${d.venda.id} registrada.`, 'success');
+    loadEncomendas('');
+    loadDashboard();
+  } else toast('Erro ao registrar entrega', 'error');
+}
+
+// ─── GRÁFICO DE EVOLUÇÃO MENSAL ───────────────────────────────────────────────
+async function loadEvolucaoChart() {
+  const data = await fetch(`${API}/dashboard/evolucao`).then(r=>r.json()).catch(()=>[]);
+  const el = document.getElementById('chart-evolucao');
+  if (!el || !data.length) return;
+  const maxVal = Math.max(...data.map(d => Math.max(d.receita, d.despesa, 0.01)));
+  el.innerHTML = data.map(d => {
+    const hRec = Math.max(4, Math.round((d.receita / maxVal) * 108));
+    const hDesp = Math.max(4, Math.round((d.despesa / maxVal) * 108));
+    const hSaldo = d.saldo >= 0 ? Math.max(4, Math.round((d.saldo / maxVal) * 108)) : 4;
+    const saldoCor = d.saldo >= 0 ? 'var(--teal)' : 'var(--coral)';
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0">
+      <div style="width:100%;display:flex;gap:2px;align-items:flex-end;height:110px">
+        <div title="Receita: ${brl(d.receita)}" style="flex:1;height:${hRec}px;background:var(--purple);border-radius:3px 3px 0 0;opacity:0.85;cursor:default"></div>
+        <div title="Despesas: ${brl(d.despesa)}" style="flex:1;height:${hDesp}px;background:var(--coral);border-radius:3px 3px 0 0;opacity:0.75;cursor:default"></div>
+        <div title="Saldo: ${brl(d.saldo)}" style="flex:1;height:${hSaldo}px;background:${saldoCor};border-radius:3px 3px 0 0;opacity:0.9;cursor:default"></div>
+      </div>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:2px;white-space:nowrap">${d.mes}</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── TOP CLIENTES ─────────────────────────────────────────────────────────────
+async function loadTopClientes(periodo = 'mes') {
+  ['mes','ano','tudo'].forEach(p => {
+    const btn = document.getElementById('top-btn-'+p);
+    if (btn) {
+      btn.style.background = p === periodo ? 'var(--purple-light)' : '';
+      btn.style.color = p === periodo ? 'var(--purple)' : '';
+    }
+  });
+  const rows = await fetch(`${API}/clientes/top?periodo=${periodo}`).then(r=>r.json()).catch(()=>[]);
+  const el = document.getElementById('top-clientes-lista');
+  if (!el) return;
+  if (!rows.length) {
+    el.innerHTML = '<div style="color:var(--text-muted);padding:8px 0">Nenhuma venda registrada no período.</div>';
+    return;
+  }
+  const maxVal = rows[0].total_gasto || 1;
+  el.innerHTML = rows.map((c, i) => {
+    const pct = Math.round((c.total_gasto / maxVal) * 100);
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:0.5px solid var(--border)">
+      <div style="width:24px;text-align:center;font-size:13px;flex-shrink:0">${medal}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.cliente_nome}</div>
+        <div style="height:4px;background:var(--bg2);border-radius:2px;margin-top:4px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:var(--purple);border-radius:2px"></div>
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:13px;font-weight:500;color:var(--purple)">${brl(c.total_gasto)}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${c.total_pedidos} pedido(s)</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── GRÁFICO NO RELATÓRIO ─────────────────────────────────────────────────────
+function renderGraficosRelatorio(vendas, despesas) {
+  const graficoEl = document.getElementById('relatorio-grafico');
+  if (!graficoEl) return;
+  graficoEl.style.display = '';
+  const tipoLabels = {impressao:'Impressão',produto:'Produto',servico:'Serviço',locacao:'Locação',outro:'Outros',encomenda:'Encomenda',orcamento:'De orçamento'};
+  const catLabels = {material:'Material',fornecedor:'Fornecedor',aluguel:'Aluguel',servico_terceiro:'Serv. Terceiro',equipamento:'Equipamento',transporte:'Transporte',alimentacao:'Alimentação',geral:'Geral'};
+  const maxRec = Math.max(...vendas.map(v=>v.total), 1);
+  const maxDesp = Math.max(...despesas.map(d=>d.total), 1);
+  const barHtml = (rows, maxV, labelMap, color) => rows.length
+    ? rows.map(r => {
+        const label = labelMap[Object.values(r)[0]] || Object.values(r)[0];
+        const pct = Math.round((r.total / maxV) * 100);
+        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+          <div style="width:90px;font-size:11px;color:var(--text-muted);text-align:right;flex-shrink:0">${label}</div>
+          <div style="flex:1;height:7px;background:var(--bg2);border-radius:4px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:${color};border-radius:4px"></div>
+          </div>
+          <div style="width:60px;font-size:11px;color:var(--text-muted);text-align:right;flex-shrink:0">${brl(r.total)}</div>
+        </div>`;
+      }).join('')
+    : '<div style="color:var(--text-muted);font-size:12px">Sem dados</div>';
+  document.getElementById('grafico-receita').innerHTML = barHtml(vendas, maxRec, tipoLabels, 'var(--purple)');
+  document.getElementById('grafico-despesas').innerHTML = barHtml(despesas, maxDesp, catLabels, 'var(--coral)');
+}
+
+// ─── BACKUP MANUAL ────────────────────────────────────────────────────────────
+async function fazerBackupManual() {
+  const btn = document.getElementById('btn-backup');
+  const msg = document.getElementById('backup-msg');
+  btn.textContent = 'Criando...';
+  btn.disabled = true;
+  const res = await fetch(`${API}/backup`, {method:'POST'}).catch(()=>null);
+  btn.textContent = 'Criar backup agora';
+  btn.disabled = false;
+  if (res && res.ok) {
+    const d = await res.json();
+    msg.textContent = `Salvo: ${d.arquivo} (${d.tamanho_kb} KB)`;
+    msg.style.color = 'var(--teal)';
+    loadListaBackups();
+  } else {
+    msg.textContent = 'Erro ao criar backup';
+    msg.style.color = 'var(--coral)';
+  }
+}
+
+async function loadListaBackups() {
+  const el = document.getElementById('lista-backups');
+  if (!el) return;
+  const rows = await fetch(`${API}/backup/lista`).then(r=>r.json()).catch(()=>[]);
+  el.innerHTML = rows.length
+    ? '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Últimos backups:</div>' +
+      rows.slice(0, 5).map(b=>`<div style="padding:3px 0;font-size:12px;color:var(--text-muted)">${b.arquivo} — ${b.tamanho_kb} KB</div>`).join('')
+    : 'Nenhum backup encontrado.';
+}
+
+// ─── PATCH loadDashboard — add evolucao chart ─────────────────────────────────
+const _loadDashboardOriginal = loadDashboard;
+loadDashboard = async function() {
+  await _loadDashboardOriginal();
+  await loadEvolucaoChart();
+};
+
+// ─── PATCH loadClientes — add top clientes ────────────────────────────────────
+const _loadClientesOriginal = loadClientes;
+loadClientes = async function() {
+  await _loadClientesOriginal();
+  if (document.getElementById('top-clientes-lista')) {
+    loadTopClientes('mes');
+  }
+};
+
+// ─── PATCH loadConfig — add social fields + backup list ──────────────────────
+const _loadConfigOriginal = loadConfig;
+loadConfig = async function() {
+  await _loadConfigOriginal();
+  const cfg = await fetch(`${API}/configuracoes`).then(r=>r.json()).catch(()=>({}));
+  const f = (id, key) => { const el = document.getElementById(id); if(el) el.value = cfg[key]||''; };
+  f('cfg-whatsapp', 'empresa_whatsapp');
+  f('cfg-instagram', 'empresa_instagram');
+  f('cfg-site', 'empresa_site');
+  loadListaBackups();
+};
+
+// ─── PATCH salvarConfig — save social fields ──────────────────────────────────
+const _salvarConfigOriginal = salvarConfig;
+salvarConfig = async function() {
+  const extraPayload = {
+    empresa_whatsapp: document.getElementById('cfg-whatsapp')?.value || '',
+    empresa_instagram: document.getElementById('cfg-instagram')?.value || '',
+    empresa_site: document.getElementById('cfg-site')?.value || '',
+  };
+  const res = await fetch(`${API}/configuracoes`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      empresa_nome: document.getElementById('cfg-nome').value,
+      empresa_cnpj: document.getElementById('cfg-cnpj').value,
+      empresa_telefone: document.getElementById('cfg-telefone').value,
+      empresa_email: document.getElementById('cfg-email').value,
+      empresa_endereco: document.getElementById('cfg-endereco').value,
+      orcamento_validade_dias: document.getElementById('cfg-validade').value,
+      ...extraPayload
+    })
+  });
+  if (res.ok) toast('Configurações salvas!','success');
+  else toast('Erro ao salvar','error');
+};
+
+// ─── PATCH loadLocacoes — populate cache for filtering ────────────────────────
+const _loadLocacoesV5 = loadLocacoes;
+loadLocacoes = async function(status) {
+  const url = status ? `${API}/locacoes?status=${status}` : `${API}/locacoes`;
+  const rows = await fetch(url).then(r=>r.json()).catch(()=>[]);
+  _locacoesCache = rows;
+  if (!_store.locacoes) _store.locacoes = {};
+  rows.forEach(l => _store.locacoes[l.id] = l);
+  renderLocacoesTabela(rows);
+};
+
+function renderLocacoesTabela(rows) {
+  const tbody = document.getElementById('tbody-locacoes');
+  if (!tbody) return;
+  tbody.innerHTML = rows.length ? rows.map(l => `
+    <tr>
+      <td>#${l.id}</td>
+      <td>${l.cliente_nome}</td>
+      <td>${fmtDate(l.data_retirada)}</td>
+      <td>${fmtDate(l.data_devolucao)}</td>
+      <td style="font-weight:500">${brl(l.total)}</td>
+      <td>${statusBadge(l.status)}</td>
+      <td style="display:flex;gap:5px;flex-wrap:wrap">
+        ${l.status==='ativo' ? `<button class="btn btn-sm btn-success" onclick="devolverLocacao(${l.id})">Devolver</button>` : ''}
+        <button class="btn btn-sm" onclick="editarLocacaoById(${l.id})">Editar</button>
+        <button class="btn btn-sm" onclick="window.open('${API}/locacoes/${l.id}/pdf','_blank')">📄 PDF</button>
+        <button class="btn btn-sm btn-danger" onclick="excluirLocacao(${l.id})">Excluir</button>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="7" style="padding:32px;text-align:center;color:var(--text-muted)">Nenhuma locação</td></tr>';
+}
+
+// ─── PATCH loadOrcamentos — populate cache for filtering ─────────────────────
+const _loadOrcamentosV5 = loadOrcamentos;
+loadOrcamentos = async function() {
+  const rows = await fetch(`${API}/orcamentos`).then(r=>r.json()).catch(()=>[]);
+  _orcamentosCache = rows;
+  if (!_store.orcamentos) _store.orcamentos = {};
+  rows.forEach(o => _store.orcamentos[o.id] = o);
+  renderOrcamentosTabela(rows);
+};
+
+function renderOrcamentosTabela(rows) {
+  const tbody = document.getElementById('tbody-orcamentos');
+  if (!tbody) return;
+  tbody.innerHTML = rows.length ? rows.map(o => `
+    <tr>
+      <td><strong>${o.numero}</strong></td>
+      <td>${o.cliente_nome||'—'}</td>
+      <td>${fmtDate(o.validade)}</td>
+      <td style="font-weight:500">${brl(o.total)}</td>
+      <td>${statusBadge(o.status)}</td>
+      <td style="display:flex;gap:5px;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="window.open('${API}/orcamentos/${o.id}/pdf','_blank')">📄 PDF</button>
+        ${o.status==='aberto'?`<button class="btn btn-sm btn-success" onclick="aprovarOrc(${o.id})">Aprovar</button>`:''}
+        ${o.status==='aprovado'?`<button class="btn btn-sm" style="background:var(--teal);color:white;border-color:var(--teal)" onclick="converterOrcVenda(${o.id})">💰 Gerar venda</button>`:''}
+        <button class="btn btn-sm" onclick="editarOrcamentoById(${o.id})">Editar</button>
+        <button class="btn btn-sm btn-danger" onclick="excluirOrcamento(${o.id})">Excluir</button>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="6" style="padding:32px;text-align:center;color:var(--text-muted)">Nenhum orçamento</td></tr>';
+}
+
+// ─── PATCH loadEncomendas — populate cache for filtering ─────────────────────
+const _loadEncomendasV5 = loadEncomendas;
+loadEncomendas = async function(filtro) {
+  const url = filtro === 'todas' ? `${API}/encomendas/todas` : `${API}/encomendas`;
+  const rows = await fetch(url).then(r=>r.json()).catch(()=>[]);
+  _encomendasCache = rows;
+  if (!_store.encomendas) _store.encomendas = {};
+  rows.forEach(e => _store.encomendas[e.id] = e);
+  renderKanban(rows);
+};
+
+function renderKanban(rows) {
+  STATUS_ENC.forEach(s => {
+    document.getElementById('cards-'+s).innerHTML = '';
+    document.getElementById('cnt-'+s).textContent = '0';
+  });
+  const counts = {pedido:0,producao:0,pronto:0,entregue:0};
+  rows.forEach(e => {
+    const col = document.getElementById('cards-' + e.status);
+    if (!col) return;
+    counts[e.status] = (counts[e.status]||0)+1;
+    const hoje = new Date().toISOString().split('T')[0];
+    const atrasada = e.data_entrega && e.data_entrega < hoje && e.status !== 'entregue';
+    const prazoLabel = e.data_entrega ? `Entrega: ${fmtDate(e.data_entrega)}` : 'Sem prazo';
+    const prazoColor = atrasada ? 'var(--coral)' : (e.data_entrega === hoje ? 'var(--amber)' : 'var(--text-muted)');
+    const nextStatus = STATUS_ENC_NEXT[e.status];
+    col.innerHTML += `
+      <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;${atrasada?'border-left:3px solid var(--coral);':''}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:11px;font-weight:500;color:var(--purple)">${e.numero}</span>
+          ${e.total > 0 ? `<span style="font-size:11px;font-weight:500">${brl(e.total)}</span>` : ''}
+        </div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:3px">${e.cliente_nome}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;line-height:1.4">${e.descricao.length>80?e.descricao.slice(0,80)+'...':e.descricao}</div>
+        <div style="font-size:11px;color:${prazoColor};margin-bottom:8px">${prazoLabel}${atrasada?' ⚠ ATRASADA':''}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          ${nextStatus ? `<button class="btn btn-sm btn-success" style="font-size:11px" onclick="avancarEncomenda(${e.id},'${nextStatus}')">→ ${STATUS_ENC_LABEL[nextStatus]}</button>` : ''}
+          ${e.status==='pronto' ? `<button class="btn btn-sm" style="font-size:11px;background:var(--teal);color:white;border-color:var(--teal)" onclick="entregarEGerarVenda(${e.id})">💰 Entregar + Venda</button>` : ''}
+          <button class="btn btn-sm" style="font-size:11px" onclick="editarEncById(${e.id})">Editar</button>
+        </div>
+      </div>`;
+  });
+  STATUS_ENC.forEach(s => { document.getElementById('cnt-'+s).textContent = counts[s]||0; });
+}
+
+// ─── PATCH loadRelatorio — add charts ────────────────────────────────────────
+const _loadRelatorioV5 = loadRelatorio;
+loadRelatorio = async function() {
+  await _loadRelatorioV5();
+  const ini = document.getElementById('rel-ini').value;
+  const fim = document.getElementById('rel-fim').value;
+  const d = await fetch(`${API}/relatorios/resumo?data_ini=${ini}&data_fim=${fim}`).then(r=>r.json()).catch(()=>null);
+  if (d) renderGraficosRelatorio(d.vendas_por_tipo, []);
+  // Also fetch despesas breakdown
+  const desp = await fetch(`${API}/relatorios/despesas-categoria?data_ini=${ini}&data_fim=${fim}`).then(r=>r.json()).catch(()=>[]);
+  if (d) renderGraficosRelatorio(d.vendas_por_tipo, desp);
 };
 
 // Close modal on overlay click

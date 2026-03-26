@@ -244,6 +244,9 @@ def init_db():
             ("empresa_email", ""),
             ("empresa_endereco", ""),
             ("empresa_cnpj", ""),
+            ("empresa_whatsapp", ""),
+            ("empresa_instagram", ""),
+            ("empresa_site", ""),
             ("logo_path", ""),
             ("orcamento_validade_dias", "7"),
         ])

@@ -1020,11 +1020,200 @@ def exportar_relatorio():
     path = gerar_relatorio_pdf(data_ini, data_fim, vendas, formas, despesas, total_entrada, total_saida, config)
     return send_file(path, as_attachment=True, download_name=os.path.basename(path))
 
+
+# ─── ORÇAMENTO → VENDA ────────────────────────────────────────────────────────
+
+@app.route('/api/orcamentos/<int:id>/converter', methods=['POST'])
+def converter_orcamento_venda(id):
+    db = get_db()
+    orc = row_to_dict(db.execute("SELECT * FROM orcamentos WHERE id=?", (id,)).fetchone())
+    if not orc:
+        db.close()
+        return jsonify({'erro': 'Orçamento não encontrado'}), 404
+    itens = rows_to_list(db.execute("SELECT * FROM orcamento_itens WHERE orcamento_id=?", (id,)).fetchall())
+    d = request.json or {}
+    cur = db.execute(
+        "INSERT INTO vendas (cliente_id, cliente_nome, tipo, subtotal, desconto, total, forma_pagamento, status, obs) VALUES (?,?,?,?,?,?,?,?,?)",
+        (orc.get('cliente_id'), orc.get('cliente_nome',''), 'orcamento',
+         orc['subtotal'], orc.get('desconto',0), orc['total'],
+         d.get('forma_pagamento','dinheiro'), 'pago',
+         f"Gerado do orçamento {orc['numero']}")
+    )
+    venda_id = cur.lastrowid
+    for item in itens:
+        db.execute(
+            "INSERT INTO venda_itens (venda_id, descricao, quantidade, preco_unitario, subtotal) VALUES (?,?,?,?,?)",
+            (venda_id, item['descricao'], item['quantidade'], item['preco_unitario'], item['subtotal'])
+        )
+    db.execute("UPDATE orcamentos SET status='aprovado' WHERE id=?", (id,))
+    db.commit()
+    venda = row_to_dict(db.execute("SELECT * FROM vendas WHERE id=?", (venda_id,)).fetchone())
+    db.close()
+    return jsonify({'venda': venda, 'ok': True}), 201
+
+# ─── ENCOMENDA → VENDA ────────────────────────────────────────────────────────
+
+@app.route('/api/encomendas/<int:id>/converter', methods=['POST'])
+def converter_encomenda_venda(id):
+    db = get_db()
+    enc = row_to_dict(db.execute("SELECT * FROM encomendas WHERE id=?", (id,)).fetchone())
+    if not enc:
+        db.close()
+        return jsonify({'erro': 'Encomenda não encontrada'}), 404
+    d = request.json or {}
+    cur = db.execute(
+        "INSERT INTO vendas (cliente_id, cliente_nome, tipo, subtotal, desconto, total, forma_pagamento, status, obs) VALUES (?,?,?,?,?,?,?,?,?)",
+        (enc.get('cliente_id'), enc.get('cliente_nome',''), 'encomenda',
+         enc.get('total',0), 0, enc.get('total',0),
+         d.get('forma_pagamento','dinheiro'), 'pago',
+         f"Gerado da encomenda {enc['numero']}: {enc['descricao'][:60]}")
+    )
+    venda_id = cur.lastrowid
+    db.execute(
+        "INSERT INTO venda_itens (venda_id, descricao, quantidade, preco_unitario, subtotal) VALUES (?,?,?,?,?)",
+        (venda_id, enc['descricao'][:100], 1, enc.get('total',0), enc.get('total',0))
+    )
+    db.execute("UPDATE encomendas SET status='entregue' WHERE id=?", (id,))
+    db.commit()
+    venda = row_to_dict(db.execute("SELECT * FROM vendas WHERE id=?", (venda_id,)).fetchone())
+    db.close()
+    return jsonify({'venda': venda, 'ok': True}), 201
+
+# ─── DASHBOARD EVOLUÇÃO MENSAL ────────────────────────────────────────────────
+
+@app.route('/api/dashboard/evolucao')
+def dashboard_evolucao():
+    db = get_db()
+    meses = []
+    for i in range(5, -1, -1):
+        d = datetime.date.today().replace(day=1)
+        mes_ref = datetime.date(d.year + (d.month - i - 1) // 12, ((d.month - i - 1) % 12) + 1, 1)
+        mes_str = mes_ref.strftime('%Y-%m')
+        label = mes_ref.strftime('%b/%y').capitalize()
+        receita = db.execute(
+            "SELECT COALESCE(SUM(total),0) as v FROM vendas WHERE strftime('%Y-%m',criado_em)=? AND status='pago'",
+            (mes_str,)
+        ).fetchone()['v']
+        despesa = db.execute(
+            "SELECT COALESCE(SUM(valor),0) as v FROM despesas WHERE strftime('%Y-%m',data)=?",
+            (mes_str,)
+        ).fetchone()['v']
+        meses.append({'mes': label, 'receita': round(receita, 2), 'despesa': round(despesa, 2), 'saldo': round(receita - despesa, 2)})
+    db.close()
+    return jsonify(meses)
+
+# ─── TOP CLIENTES ─────────────────────────────────────────────────────────────
+
+@app.route('/api/clientes/top')
+def top_clientes():
+    db = get_db()
+    periodo = request.args.get('periodo', 'mes')
+    if periodo == 'mes':
+        filtro = f"AND strftime('%Y-%m', criado_em)='{datetime.date.today().strftime('%Y-%m')}'"
+    elif periodo == 'ano':
+        filtro = f"AND strftime('%Y', criado_em)='{datetime.date.today().year}'"
+    else:
+        filtro = ""
+    rows = rows_to_list(db.execute(f"""
+        SELECT cliente_nome, COUNT(*) as total_pedidos,
+               SUM(total) as total_gasto,
+               MAX(criado_em) as ultima_compra
+        FROM vendas
+        WHERE status='pago' AND cliente_nome != '' {filtro}
+        GROUP BY cliente_nome
+        ORDER BY total_gasto DESC
+        LIMIT 10
+    """).fetchall())
+    db.close()
+    return jsonify(rows)
+
+# ─── DISPONIBILIDADE DE ITENS POR DATA ────────────────────────────────────────
+
+@app.route('/api/itens-locacao/<int:id>/disponibilidade')
+def disponibilidade_item(id):
+    db = get_db()
+    item = row_to_dict(db.execute("SELECT * FROM itens_locacao WHERE id=?", (id,)).fetchone())
+    if not item:
+        db.close()
+        return jsonify({'erro': 'Item não encontrado'}), 404
+    data_ini = request.args.get('data_ini', datetime.date.today().isoformat())
+    data_fim = request.args.get('data_fim', datetime.date.today().isoformat())
+    em_uso = db.execute("""
+        SELECT COALESCE(SUM(li.quantidade),0) as qtd
+        FROM locacao_itens li
+        JOIN locacoes l ON l.id = li.locacao_id
+        WHERE li.item_id=? AND l.status='ativo'
+          AND l.data_retirada <= ? AND l.data_devolucao >= ?
+    """, (id, data_fim, data_ini)).fetchone()['qtd']
+    total = item.get('quantidade_total', 0)
+    disponivel = max(0, total - em_uso)
+    db.close()
+    return jsonify({
+        'item_id': id,
+        'nome': item['nome'],
+        'total': total,
+        'em_uso': em_uso,
+        'disponivel': disponivel,
+        'disponivel_pct': round(disponivel / total * 100) if total > 0 else 0
+    })
+
+# ─── BACKUP MANUAL ────────────────────────────────────────────────────────────
+
+@app.route('/api/backup', methods=['POST'])
+def backup_manual():
+    import shutil
+    try:
+        from database import DB_PATH
+        if not os.path.exists(DB_PATH):
+            return jsonify({'erro': 'Banco não encontrado'}), 404
+        backup_dir = os.path.join(BASE_DIR, 'backups')
+        os.makedirs(backup_dir, exist_ok=True)
+        ts = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        dest = os.path.join(backup_dir, f'dripArt_manual_{ts}.db')
+        shutil.copy2(DB_PATH, dest)
+        size = os.path.getsize(dest)
+        return jsonify({'ok': True, 'arquivo': os.path.basename(dest), 'tamanho_kb': round(size/1024, 1)})
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/backup/lista')
+def listar_backups():
+    backup_dir = os.path.join(BASE_DIR, 'backups')
+    if not os.path.exists(backup_dir):
+        return jsonify([])
+    files = sorted([f for f in os.listdir(backup_dir) if f.endswith('.db')], reverse=True)
+    result = []
+    for f in files[:20]:
+        path = os.path.join(backup_dir, f)
+        result.append({
+            'arquivo': f,
+            'tamanho_kb': round(os.path.getsize(path)/1024, 1),
+            'data': f.replace('dripArt_','').replace('.db','').replace('_',' ')
+        })
+    return jsonify(result)
+
+@app.route('/api/relatorios/despesas-categoria')
+def relatorio_despesas_categoria():
+    db = get_db()
+    data_ini = request.args.get('data_ini', datetime.date.today().replace(day=1).isoformat())
+    data_fim = request.args.get('data_fim', datetime.date.today().isoformat())
+    rows = rows_to_list(db.execute(
+        "SELECT categoria, COUNT(*) as qtd, SUM(valor) as total FROM despesas WHERE data BETWEEN ? AND ? GROUP BY categoria ORDER BY total DESC",
+        (data_ini, data_fim)
+    ).fetchall())
+    db.close()
+    return jsonify(rows)
+
 # ─── CONFIGURAÇÕES ─────────────────────────────────────────────────────────────
 
 @app.route('/api/configuracoes', methods=['GET'])
 def listar_config():
-    return jsonify(get_config())
+    cfg = get_config()
+    # Ensure new social fields exist
+    for k in ['empresa_whatsapp','empresa_instagram','empresa_site']:
+        if k not in cfg:
+            cfg[k] = ''
+    return jsonify(cfg)
 
 @app.route('/api/upload-logo', methods=['POST'])
 def upload_logo():
