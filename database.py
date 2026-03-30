@@ -85,6 +85,7 @@ def init_db():
         total REAL NOT NULL,
         forma_pagamento TEXT NOT NULL,
         status TEXT DEFAULT 'pago',
+        vencimento_fiado DATE,
         obs TEXT,
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -187,12 +188,61 @@ def init_db():
         preco REAL NOT NULL,
         ativo INTEGER DEFAULT 1
     );
+
+    CREATE TABLE IF NOT EXISTS agenda (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        titulo TEXT NOT NULL,
+        tipo TEXT DEFAULT 'compromisso',
+        data_inicio DATE NOT NULL,
+        data_fim DATE,
+        hora_inicio TEXT DEFAULT '08:00',
+        hora_fim TEXT DEFAULT '09:00',
+        cliente_nome TEXT,
+        descricao TEXT,
+        status TEXT DEFAULT 'pendente',
+        locacao_id INTEGER REFERENCES locacoes(id),
+        encomenda_id INTEGER REFERENCES encomendas(id),
+        cor TEXT DEFAULT '#534AB7',
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
     """)
 
     # Dados iniciais
     # Migrations para banco já existente
     try:
+        c.execute("ALTER TABLE vendas ADD COLUMN data_vencimento DATE")
+    except: pass
+    try:
+        c.execute("ALTER TABLE locacoes ADD COLUMN data_vencimento DATE")
+    except: pass
+    try:
+        c.execute("ALTER TABLE vendas ADD COLUMN vencimento_fiado DATE")
+    except: pass
+    try:
+        c.execute("ALTER TABLE locacoes ADD COLUMN vencimento_fiado DATE")
+    except: pass
+    try:
+        c.execute("ALTER TABLE vendas ADD COLUMN data_vencimento DATE")
+    except: pass
+    try:
+        c.execute("ALTER TABLE locacoes ADD COLUMN data_vencimento DATE")
+    except: pass
+
+
+    try:
         c.execute("ALTER TABLE materiais_impressao ADD COLUMN custo_material REAL DEFAULT 0")
+    except: pass
+    try:
+        c.execute("ALTER TABLE vendas ADD COLUMN data_vencimento DATE")
+    except: pass
+    try:
+        c.execute("ALTER TABLE vendas ADD COLUMN valor_pago REAL DEFAULT 0")
+    except: pass
+    try:
+        c.execute("ALTER TABLE locacoes ADD COLUMN data_vencimento DATE")
+    except: pass
+    try:
+        c.execute("ALTER TABLE produtos ADD COLUMN codigo TEXT DEFAULT ''")
     except: pass
     try:
         c.execute("ALTER TABLE materiais_impressao ADD COLUMN margem_lucro REAL DEFAULT 50")
@@ -202,6 +252,9 @@ def init_db():
     except: pass
     try:
         c.execute("ALTER TABLE materiais_impressao ADD COLUMN preco_unidade REAL DEFAULT 0")
+    except: pass
+    try:
+        c.execute("ALTER TABLE encomendas ADD COLUMN sinal REAL DEFAULT 0")
     except: pass
 
     c.execute("SELECT COUNT(*) FROM materiais_impressao")

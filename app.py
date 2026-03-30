@@ -10,7 +10,7 @@ STATIC_DIR = BASE_DIR
 print(f"Pasta: {BASE_DIR}")
 
 try:
-    from pdf_generator import gerar_orcamento_pdf, gerar_nota_venda_pdf, gerar_pdf_locacao, gerar_relatorio_pdf
+    from pdf_generator import gerar_orcamento_pdf, gerar_nota_venda_pdf, gerar_pdf_locacao, gerar_relatorio_pdf, gerar_pdf_encomenda, gerar_pdf_encomenda
     PDF_OK = True
 except ImportError:
     PDF_OK = False
@@ -59,6 +59,10 @@ def proximo_numero_orcamento():
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
 
 # ─── DASHBOARD ────────────────────────────────────────────────────────────────
 
@@ -120,6 +124,17 @@ def dashboard():
         ORDER BY data_devolucao ASC
     """).fetchall())
 
+    # Fiado em atraso e a vencer
+    fiado_atrasado = db.execute(
+        "SELECT COUNT(*) as c, COALESCE(SUM(total),0) as v FROM vendas WHERE status='fiado' AND data_vencimento < date('now')"
+    ).fetchone()
+    fiado_vencendo = db.execute(
+        "SELECT COUNT(*) as c, COALESCE(SUM(total),0) as v FROM vendas WHERE status='fiado' AND data_vencimento BETWEEN date('now') AND date('now','+7 days')"
+    ).fetchone()
+    fiado_total = db.execute(
+        "SELECT COUNT(*) as c, COALESCE(SUM(total),0) as v FROM vendas WHERE status='fiado'"
+    ).fetchone()
+
     # Saldo do caixa do mês
     mes_entradas = db.execute(
         "SELECT COALESCE(SUM(total),0) as v FROM vendas WHERE strftime('%Y-%m', criado_em)=? AND status='pago'",
@@ -137,7 +152,6 @@ def dashboard():
     encomendas_atrasadas = db.execute(
         "SELECT COUNT(*) as c FROM encomendas WHERE status NOT IN ('entregue') AND data_entrega < date('now') AND data_entrega != ''"
     ).fetchone()['c']
-
     locacoes_atrasadas = db.execute(
         "SELECT COUNT(*) as c FROM locacoes WHERE status='ativo' AND data_devolucao < date('now')"
     ).fetchone()['c']
@@ -150,6 +164,11 @@ def dashboard():
         'locacoes_ativas': locacoes_ativas,
         'locacoes_vencendo': locacoes_vencendo,
         'locacoes_atrasadas': locacoes_atrasadas,
+        'fiado_atrasado_count': fiado_atrasado['c'],
+        'fiado_atrasado_valor': fiado_atrasado['v'],
+        'fiado_vencendo_count': fiado_vencendo['c'],
+        'fiado_total_count': fiado_total['c'],
+        'fiado_total_valor': fiado_total['v'],
         'saldo_mes': mes_entradas - mes_saidas,
         'mes_saidas': mes_saidas,
         'encomendas_pendentes': encomendas_pendentes,
@@ -243,7 +262,11 @@ def historico_cliente(id):
 @app.route('/api/produtos', methods=['GET'])
 def listar_produtos():
     db = get_db()
-    rows = db.execute("SELECT * FROM produtos WHERE ativo=1 ORDER BY nome").fetchall()
+    q = request.args.get('q', '')
+    if q:
+        rows = db.execute("SELECT * FROM produtos WHERE ativo=1 AND nome LIKE ? ORDER BY nome", (f'%{q}%',)).fetchall()
+    else:
+        rows = db.execute("SELECT * FROM produtos WHERE ativo=1 ORDER BY nome").fetchall()
     db.close()
     return jsonify(rows_to_list(rows))
 
@@ -253,7 +276,7 @@ def criar_produto():
     db = get_db()
     cur = db.execute(
         "INSERT INTO produtos (nome, descricao, categoria, preco_venda, estoque) VALUES (?,?,?,?,?)",
-        (d['nome'], d.get('descricao',''), d.get('categoria',''), d['preco_venda'], d.get('estoque',0))
+        (d['nome'], d.get('descricao',''), d.get('categoria',''), d.get('preco_venda', 0), d.get('estoque',0))
     )
     db.commit()
     row = db.execute("SELECT * FROM produtos WHERE id=?", (cur.lastrowid,)).fetchone()
@@ -266,7 +289,7 @@ def atualizar_produto(id):
     db = get_db()
     db.execute(
         "UPDATE produtos SET nome=?, descricao=?, categoria=?, preco_venda=?, estoque=? WHERE id=?",
-        (d['nome'], d.get('descricao',''), d.get('categoria',''), d['preco_venda'], d.get('estoque',0), id)
+        (d['nome'], d.get('descricao',''), d.get('categoria',''), d.get('preco_venda', 0), d.get('estoque',0), id)
     )
     db.commit()
     row = db.execute("SELECT * FROM produtos WHERE id=?", (id,)).fetchone()
@@ -413,11 +436,13 @@ def listar_vendas():
 def criar_venda():
     d = request.json
     db = get_db()
+    venc = d.get('data_vencimento') or (None if d.get('forma_pagamento') != 'fiado' else
+           (datetime.date.today() + datetime.timedelta(days=30)).isoformat())
     cur = db.execute(
-        "INSERT INTO vendas (cliente_id, cliente_nome, tipo, subtotal, desconto, total, forma_pagamento, status, obs) VALUES (?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO vendas (cliente_id, cliente_nome, tipo, subtotal, desconto, total, forma_pagamento, status, obs, data_vencimento) VALUES (?,?,?,?,?,?,?,?,?,?)",
         (d.get('cliente_id'), d.get('cliente_nome',''), d.get('tipo','venda'),
-         d['subtotal'], d.get('desconto', 0), d['total'],
-         d['forma_pagamento'], d.get('status','pago'), d.get('obs',''))
+         d.get('subtotal', 0), d.get('desconto', 0), d.get('total', 0),
+         d['forma_pagamento'], d.get('status','pago'), d.get('obs',''), venc)
     )
     venda_id = cur.lastrowid
     for item in d.get('itens', []):
@@ -425,6 +450,11 @@ def criar_venda():
             "INSERT INTO venda_itens (venda_id, descricao, quantidade, preco_unitario, subtotal) VALUES (?,?,?,?,?)",
             (venda_id, item['descricao'], item['quantidade'], item['preco_unitario'], item['subtotal'])
         )
+        if item.get('produto_id'):
+            db.execute(
+                "UPDATE produtos SET estoque = MAX(0, estoque - ?) WHERE id=?",
+                (int(item['quantidade']), item['produto_id'])
+            )
     db.commit()
     row = db.execute("SELECT * FROM vendas WHERE id=?", (venda_id,)).fetchone()
     db.close()
@@ -436,8 +466,8 @@ def atualizar_venda(id):
     db = get_db()
     db.execute(
         "UPDATE vendas SET cliente_nome=?, tipo=?, subtotal=?, desconto=?, total=?, forma_pagamento=?, status=?, obs=? WHERE id=?",
-        (d.get('cliente_nome',''), d.get('tipo','venda'), d['subtotal'],
-         d.get('desconto',0), d['total'], d['forma_pagamento'],
+        (d.get('cliente_nome',''), d.get('tipo','venda'), d.get('subtotal', 0),
+         d.get('desconto',0), d.get('total', 0), d['forma_pagamento'],
          d.get('status','pago'), d.get('obs',''), id)
     )
     # update items: delete and re-insert
@@ -482,6 +512,95 @@ def pdf_venda(id):
 
 # ─── LOCAÇÕES ─────────────────────────────────────────────────────────────────
 
+
+# ─── FIADO ────────────────────────────────────────────────────────────────────
+
+
+@app.route('/api/vendas/<int:id>/quitar', methods=['PUT'])
+def quitar_venda(id):
+    db = get_db()
+    db.execute("UPDATE vendas SET status='pago', forma_pagamento=? WHERE id=?",
+               (request.json.get('forma_pagamento','dinheiro'), id))
+    db.commit()
+    row = row_to_dict(db.execute("SELECT * FROM vendas WHERE id=?", (id,)).fetchone())
+    db.close()
+    return jsonify(row)
+
+# ─── PDF ENCOMENDA ────────────────────────────────────────────────────────────
+
+
+@app.route('/api/agenda', methods=['GET'])
+def listar_agenda():
+    db = get_db()
+    mes = request.args.get('mes', datetime.date.today().strftime('%Y-%m'))
+    data_ini = request.args.get('data_ini', mes + '-01')
+    # Last day of month
+    ano, m = int(mes.split('-')[0]), int(mes.split('-')[1])
+    import calendar
+    ultimo_dia = calendar.monthrange(ano, m)[1]
+    data_fim = request.args.get('data_fim', f'{mes}-{ultimo_dia:02d}')
+    rows = rows_to_list(db.execute(
+        "SELECT * FROM agenda WHERE data_inicio <= ? AND (data_fim >= ? OR data_fim IS NULL) ORDER BY data_inicio, hora_inicio",
+        (data_fim, data_ini)
+    ).fetchall())
+    db.close()
+    return jsonify(rows)
+
+@app.route('/api/agenda/proximos')
+def proximos_eventos():
+    db = get_db()
+    hoje = datetime.date.today().isoformat()
+    fim = (datetime.date.today() + datetime.timedelta(days=7)).isoformat()
+    rows = rows_to_list(db.execute(
+        "SELECT * FROM agenda WHERE data_inicio BETWEEN ? AND ? AND status != 'cancelado' ORDER BY data_inicio, hora_inicio LIMIT 10",
+        (hoje, fim)
+    ).fetchall())
+    db.close()
+    return jsonify(rows)
+
+@app.route('/api/agenda', methods=['POST'])
+def criar_evento():
+    d = request.json
+    db = get_db()
+    cur = db.execute(
+        "INSERT INTO agenda (titulo, tipo, data_inicio, data_fim, hora_inicio, hora_fim, cliente_nome, descricao, status, locacao_id, encomenda_id, cor) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        (d['titulo'], d.get('tipo','compromisso'), d['data_inicio'],
+         d.get('data_fim', d['data_inicio']), d.get('hora_inicio','08:00'),
+         d.get('hora_fim','09:00'), d.get('cliente_nome',''), d.get('descricao',''),
+         d.get('status','pendente'), d.get('locacao_id'), d.get('encomenda_id'),
+         d.get('cor','#534AB7'))
+    )
+    db.commit()
+    row = row_to_dict(db.execute("SELECT * FROM agenda WHERE id=?", (cur.lastrowid,)).fetchone())
+    db.close()
+    return jsonify(row), 201
+
+@app.route('/api/agenda/<int:id>', methods=['PUT'])
+def atualizar_evento(id):
+    d = request.json
+    db = get_db()
+    db.execute(
+        "UPDATE agenda SET titulo=?, tipo=?, data_inicio=?, data_fim=?, hora_inicio=?, hora_fim=?, cliente_nome=?, descricao=?, status=?, cor=? WHERE id=?",
+        (d['titulo'], d.get('tipo','compromisso'), d['data_inicio'],
+         d.get('data_fim', d['data_inicio']), d.get('hora_inicio','08:00'),
+         d.get('hora_fim','09:00'), d.get('cliente_nome',''), d.get('descricao',''),
+         d.get('status','pendente'), d.get('cor','#534AB7'), id)
+    )
+    db.commit()
+    row = row_to_dict(db.execute("SELECT * FROM agenda WHERE id=?", (id,)).fetchone())
+    db.close()
+    return jsonify(row)
+
+@app.route('/api/agenda/<int:id>', methods=['DELETE'])
+def deletar_evento(id):
+    db = get_db()
+    db.execute("DELETE FROM agenda WHERE id=?", (id,))
+    db.commit()
+    db.close()
+    return jsonify({'ok': True})
+
+# ─── LOCAÇÕES COM FILTRO DE DATA ──────────────────────────────────────────────
+
 @app.route('/api/locacoes/<int:id>/itens')
 def itens_locacao_get(id):
     db = get_db()
@@ -493,10 +612,21 @@ def itens_locacao_get(id):
 def listar_locacoes():
     db = get_db()
     status = request.args.get('status', '')
+    data_ini = request.args.get('data_ini', '')
+    data_fim = request.args.get('data_fim', '')
+    q = request.args.get('q', '')
+    where, params = [], []
     if status:
-        rows = db.execute("SELECT * FROM locacoes WHERE status=? ORDER BY criado_em DESC", (status,)).fetchall()
-    else:
-        rows = db.execute("SELECT * FROM locacoes ORDER BY criado_em DESC LIMIT 100").fetchall()
+        where.append("status=?"); params.append(status)
+    if data_ini and data_fim:
+        where.append("data_retirada BETWEEN ? AND ?"); params += [data_ini, data_fim]
+    if q:
+        where.append("cliente_nome LIKE ?"); params.append(f'%{q}%')
+    sql = "SELECT * FROM locacoes"
+    if where:
+        sql += " WHERE " + " AND ".join(where)
+    sql += " ORDER BY criado_em DESC LIMIT 200"
+    rows = db.execute(sql, params).fetchall()
     db.close()
     return jsonify(rows_to_list(rows))
 
@@ -504,12 +634,14 @@ def listar_locacoes():
 def criar_locacao():
     d = request.json
     db = get_db()
+    venc_loc = d.get('data_vencimento') or (None if d.get('forma_pagamento') != 'fiado' else
+              (datetime.date.today() + datetime.timedelta(days=30)).isoformat())
     cur = db.execute(
-        "INSERT INTO locacoes (cliente_id, cliente_nome, tipo, data_retirada, data_devolucao, total, desconto, forma_pagamento, status, obs) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO locacoes (cliente_id, cliente_nome, tipo, data_retirada, data_devolucao, total, desconto, forma_pagamento, status, obs, data_vencimento) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         (d.get('cliente_id'), d['cliente_nome'], d.get('tipo','item'),
          d['data_retirada'], d['data_devolucao'],
-         d['total'], d.get('desconto',0), d.get('forma_pagamento',''),
-         d.get('status','ativo'), d.get('obs',''))
+         d.get('total', 0), d.get('desconto',0), d.get('forma_pagamento',''),
+         d.get('status','ativo'), d.get('obs',''), venc_loc)
     )
     loc_id = cur.lastrowid
     for item in d.get('itens', []):
@@ -518,6 +650,12 @@ def criar_locacao():
             (loc_id, item.get('item_id'), item.get('kit_id'), item['nome'],
              item['quantidade'], item['preco_unitario'], item['subtotal'])
         )
+    # Sincroniza com agenda automaticamente
+    db.execute(
+        "INSERT INTO agenda (titulo, tipo, data_inicio, data_fim, hora_inicio, hora_fim, cliente_nome, status, locacao_id, cor) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (f"Locacao: {d['cliente_nome']}", 'locacao', d['data_retirada'], d['data_devolucao'],
+         '08:00', '18:00', d['cliente_nome'], 'pendente', loc_id, '#1D9E75')
+    )
     db.commit()
     row = db.execute("SELECT * FROM locacoes WHERE id=?", (loc_id,)).fetchone()
     db.close()
@@ -530,7 +668,7 @@ def atualizar_locacao(id):
     db.execute(
         "UPDATE locacoes SET cliente_nome=?, data_retirada=?, data_devolucao=?, total=?, desconto=?, forma_pagamento=?, obs=? WHERE id=?",
         (d['cliente_nome'], d['data_retirada'], d['data_devolucao'],
-         d['total'], d.get('desconto',0), d.get('forma_pagamento',''), d.get('obs',''), id)
+         d.get('total', 0), d.get('desconto',0), d.get('forma_pagamento',''), d.get('obs',''), id)
     )
     db.execute("DELETE FROM locacao_itens WHERE locacao_id=?", (id,))
     for item in d.get('itens', []):
@@ -578,7 +716,11 @@ def atualizar_status_locacao(id):
 @app.route('/api/itens-locacao', methods=['GET'])
 def listar_itens_locacao():
     db = get_db()
-    rows = db.execute("SELECT * FROM itens_locacao WHERE ativo=1 ORDER BY nome").fetchall()
+    q = request.args.get('q', '')
+    if q:
+        rows = db.execute("SELECT * FROM itens_locacao WHERE ativo=1 AND nome LIKE ? ORDER BY nome", (f'%{q}%',)).fetchall()
+    else:
+        rows = db.execute("SELECT * FROM itens_locacao WHERE ativo=1 ORDER BY nome").fetchall()
     db.close()
     return jsonify(rows_to_list(rows))
 
@@ -588,7 +730,7 @@ def criar_item_locacao():
     db = get_db()
     cur = db.execute(
         "INSERT INTO itens_locacao (nome, descricao, categoria, preco_diaria, quantidade_total) VALUES (?,?,?,?,?)",
-        (d['nome'], d.get('descricao',''), d.get('categoria',''), d['preco_diaria'], d.get('quantidade_total',1))
+        (d['nome'], d.get('descricao',''), d.get('categoria',''), d.get('preco_diaria', 0), d.get('quantidade_total',1))
     )
     db.commit()
     row = db.execute("SELECT * FROM itens_locacao WHERE id=?", (cur.lastrowid,)).fetchone()
@@ -601,7 +743,7 @@ def atualizar_item_locacao(id):
     db = get_db()
     db.execute(
         "UPDATE itens_locacao SET nome=?, descricao=?, categoria=?, preco_diaria=?, quantidade_total=? WHERE id=?",
-        (d['nome'], d.get('descricao',''), d.get('categoria',''), d['preco_diaria'], d.get('quantidade_total',1), id)
+        (d['nome'], d.get('descricao',''), d.get('categoria',''), d.get('preco_diaria', 0), d.get('quantidade_total',1), id)
     )
     db.commit()
     row = db.execute("SELECT * FROM itens_locacao WHERE id=?", (id,)).fetchone()
@@ -636,7 +778,7 @@ def criar_kit():
     db = get_db()
     cur = db.execute(
         "INSERT INTO kits_locacao (nome, descricao, preco_total) VALUES (?,?,?)",
-        (d['nome'], d.get('descricao',''), d['preco_total'])
+        (d['nome'], d.get('descricao',''), d.get('preco_total', 0))
     )
     kit_id = cur.lastrowid
     for item in d.get('itens', []):
@@ -652,7 +794,7 @@ def atualizar_kit(id):
     d = request.json
     db = get_db()
     db.execute("UPDATE kits_locacao SET nome=?, descricao=?, preco_total=? WHERE id=?",
-               (d['nome'], d.get('descricao',''), d['preco_total'], id))
+               (d['nome'], d.get('descricao',''), d.get('preco_total', 0), id))
     db.execute("DELETE FROM kit_itens WHERE kit_id=?", (id,))
     for item in d.get('itens', []):
         db.execute("INSERT INTO kit_itens (kit_id, item_id, quantidade) VALUES (?,?,?)",
@@ -692,7 +834,7 @@ def criar_orcamento():
     cur = db.execute(
         "INSERT INTO orcamentos (numero, cliente_id, cliente_nome, validade, subtotal, desconto, total, status, obs) VALUES (?,?,?,?,?,?,?,?,?)",
         (numero, d.get('cliente_id'), d.get('cliente_nome',''),
-         validade, d['subtotal'], d.get('desconto',0), d['total'],
+         validade, d.get('subtotal', 0), d.get('desconto',0), d.get('total', 0),
          'aberto', d.get('obs',''))
     )
     orc_id = cur.lastrowid
@@ -712,7 +854,7 @@ def atualizar_orcamento(id):
     db = get_db()
     db.execute(
         "UPDATE orcamentos SET cliente_nome=?, subtotal=?, desconto=?, total=?, obs=? WHERE id=?",
-        (d.get('cliente_nome',''), d['subtotal'], d.get('desconto',0), d['total'], d.get('obs',''), id)
+        (d.get('cliente_nome',''), d.get('subtotal', 0), d.get('desconto',0), d.get('total', 0), d.get('obs',''), id)
     )
     db.execute("DELETE FROM orcamento_itens WHERE orcamento_id=?", (id,))
     for item in d.get('itens', []):
@@ -804,7 +946,10 @@ def relatorio_resumo():
     })
 
 
-# ─── DESPESAS ─────────────────────────────────────────────────────────────────
+
+# ─── FIADO / COBRANÇAS ────────────────────────────────────────────────────────
+
+
 
 @app.route('/api/despesas', methods=['GET'])
 def listar_despesas():
@@ -824,7 +969,7 @@ def criar_despesa():
     db = get_db()
     cur = db.execute(
         "INSERT INTO despesas (descricao, categoria, valor, forma_pagamento, data, obs) VALUES (?,?,?,?,?,?)",
-        (d['descricao'], d.get('categoria','geral'), d['valor'],
+        (d['descricao'], d.get('categoria','geral'), d.get('valor', 0),
          d.get('forma_pagamento','dinheiro'), d.get('data', datetime.date.today().isoformat()), d.get('obs',''))
     )
     db.commit()
@@ -838,7 +983,7 @@ def atualizar_despesa(id):
     db = get_db()
     db.execute(
         "UPDATE despesas SET descricao=?, categoria=?, valor=?, forma_pagamento=?, data=?, obs=? WHERE id=?",
-        (d['descricao'], d.get('categoria','geral'), d['valor'],
+        (d['descricao'], d.get('categoria','geral'), d.get('valor', 0),
          d.get('forma_pagamento','dinheiro'), d.get('data',''), d.get('obs',''), id)
     )
     db.commit()
@@ -912,11 +1057,18 @@ def criar_encomenda():
     db = get_db()
     numero = proximo_numero_encomenda()
     cur = db.execute(
-        "INSERT INTO encomendas (numero, cliente_id, cliente_nome, descricao, status, data_pedido, data_entrega, total, obs) VALUES (?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO encomendas (numero, cliente_id, cliente_nome, descricao, status, data_pedido, data_entrega, total, sinal, obs) VALUES (?,?,?,?,?,?,?,?,?,?)",
         (numero, d.get('cliente_id'), d['cliente_nome'], d['descricao'],
          d.get('status','pedido'), d.get('data_pedido', datetime.date.today().isoformat()),
-         d.get('data_entrega',''), d.get('total',0), d.get('obs',''))
+         d.get('data_entrega',''), d.get('total',0), d.get('sinal',0), d.get('obs',''))
     )
+    # Sincroniza com agenda se tiver data de entrega
+    if d.get('data_entrega'):
+        db.execute(
+            "INSERT INTO agenda (titulo, tipo, data_inicio, data_fim, hora_inicio, hora_fim, cliente_nome, descricao, status, encomenda_id, cor) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            (f"Entrega: {d['cliente_nome']}", 'encomenda', d['data_entrega'], d['data_entrega'],
+             '08:00', '18:00', d['cliente_nome'], d.get('descricao','')[:60], 'pendente', cur.lastrowid, '#534AB7')
+        )
     db.commit()
     row = db.execute("SELECT * FROM encomendas WHERE id=?", (cur.lastrowid,)).fetchone()
     db.close()
@@ -937,14 +1089,15 @@ def atualizar_encomenda(id):
     d = request.json
     db = get_db()
     db.execute(
-        "UPDATE encomendas SET cliente_nome=?, descricao=?, status=?, data_entrega=?, total=?, obs=? WHERE id=?",
+        "UPDATE encomendas SET cliente_nome=?, descricao=?, status=?, data_entrega=?, total=?, sinal=?, obs=? WHERE id=?",
         (d['cliente_nome'], d['descricao'], d.get('status','pedido'),
-         d.get('data_entrega',''), d.get('total',0), d.get('obs',''), id)
+         d.get('data_entrega',''), d.get('total',0), d.get('sinal',0), d.get('obs',''), id)
     )
     db.commit()
     row = db.execute("SELECT * FROM encomendas WHERE id=?", (id,)).fetchone()
     db.close()
     return jsonify(row_to_dict(row))
+
 
 @app.route('/api/encomendas/<int:id>', methods=['DELETE'])
 def deletar_encomenda(id):
@@ -959,7 +1112,11 @@ def deletar_encomenda(id):
 @app.route('/api/servicos', methods=['GET'])
 def listar_servicos():
     db = get_db()
-    rows = db.execute("SELECT * FROM servicos WHERE ativo=1 ORDER BY nome").fetchall()
+    q = request.args.get('q', '')
+    if q:
+        rows = db.execute("SELECT * FROM servicos WHERE ativo=1 AND nome LIKE ? ORDER BY nome", (f'%{q}%',)).fetchall()
+    else:
+        rows = db.execute("SELECT * FROM servicos WHERE ativo=1 ORDER BY nome").fetchall()
     db.close()
     return jsonify(rows_to_list(rows))
 
@@ -969,7 +1126,7 @@ def criar_servico():
     db = get_db()
     cur = db.execute(
         "INSERT INTO servicos (nome, descricao, categoria, tipo_preco, preco) VALUES (?,?,?,?,?)",
-        (d['nome'], d.get('descricao',''), d.get('categoria',''), d.get('tipo_preco','fixo'), d['preco'])
+        (d['nome'], d.get('descricao',''), d.get('categoria',''), d.get('tipo_preco','fixo'), d.get('preco', 0))
     )
     db.commit()
     row = db.execute("SELECT * FROM servicos WHERE id=?", (cur.lastrowid,)).fetchone()
@@ -982,7 +1139,7 @@ def atualizar_servico(id):
     db = get_db()
     db.execute(
         "UPDATE servicos SET nome=?, descricao=?, categoria=?, tipo_preco=?, preco=? WHERE id=?",
-        (d['nome'], d.get('descricao',''), d.get('categoria',''), d.get('tipo_preco','fixo'), d['preco'], id)
+        (d['nome'], d.get('descricao',''), d.get('categoria',''), d.get('tipo_preco','fixo'), d.get('preco', 0), id)
     )
     db.commit()
     row = db.execute("SELECT * FROM servicos WHERE id=?", (id,)).fetchone()
@@ -1200,6 +1357,67 @@ def relatorio_despesas_categoria():
     rows = rows_to_list(db.execute(
         "SELECT categoria, COUNT(*) as qtd, SUM(valor) as total FROM despesas WHERE data BETWEEN ? AND ? GROUP BY categoria ORDER BY total DESC",
         (data_ini, data_fim)
+    ).fetchall())
+    db.close()
+    return jsonify(rows)
+
+@app.route('/api/fiado')
+def listar_fiado():
+    db = get_db()
+    status_filter = request.args.get('status', '')
+    if status_filter == 'atrasado':
+        rows = rows_to_list(db.execute(
+            "SELECT * FROM vendas WHERE status='fiado' AND data_vencimento < date('now') ORDER BY data_vencimento ASC"
+        ).fetchall())
+    elif status_filter == 'vencendo':
+        rows = rows_to_list(db.execute(
+            "SELECT * FROM vendas WHERE status='fiado' AND data_vencimento BETWEEN date('now') AND date('now','+7 days') ORDER BY data_vencimento ASC"
+        ).fetchall())
+    else:
+        rows = rows_to_list(db.execute(
+            "SELECT * FROM vendas WHERE status='fiado' ORDER BY data_vencimento ASC NULLS LAST"
+        ).fetchall())
+    db.close()
+    return jsonify(rows)
+
+@app.route('/api/vendas/<int:id>/receber', methods=['PUT'])
+def receber_fiado(id):
+    d = request.json or {}
+    db = get_db()
+    db.execute(
+        "UPDATE vendas SET status='pago', forma_pagamento=? WHERE id=?",
+        (d.get('forma_pagamento', 'dinheiro'), id)
+    )
+    db.commit()
+    row = row_to_dict(db.execute("SELECT * FROM vendas WHERE id=?", (id,)).fetchone())
+    db.close()
+    return jsonify(row)
+
+# ─── PDF ENCOMENDA ────────────────────────────────────────────────────────────
+
+@app.route('/api/encomendas/<int:id>/pdf')
+def pdf_encomenda(id):
+    if not PDF_OK:
+        return jsonify({'erro': 'reportlab nao instalado'}), 503
+    db = get_db()
+    enc = row_to_dict(db.execute("SELECT * FROM encomendas WHERE id=?", (id,)).fetchone())
+    if not enc:
+        db.close()
+        return jsonify({'erro': 'Encomenda nao encontrada'}), 404
+    db.close()
+    config = get_config()
+    path = gerar_pdf_encomenda(enc, config)
+    return send_file(path, as_attachment=True, download_name=os.path.basename(path))
+
+# ─── ESTOQUE ─────────────────────────────────────────────────────────────────
+
+@app.route('/api/produtos/estoque-baixo')
+def estoque_baixo():
+    db = get_db()
+    limite = int(request.args.get('limite', 5))
+    rows = rows_to_list(db.execute(
+        "SELECT * FROM produtos WHERE ativo=1 AND estoque <= ? ORDER BY estoque ASC",
+        (limite,)
     ).fetchall())
     db.close()
     return jsonify(rows)

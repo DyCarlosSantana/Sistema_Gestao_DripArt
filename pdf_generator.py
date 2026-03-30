@@ -494,3 +494,99 @@ def gerar_relatorio_pdf(data_ini, data_fim, vendas, formas, despesas, total_entr
         ParagraphStyle('footer', fontSize=7, textColor=GRAY, alignment=TA_CENTER)))
     doc.build(story)
     return filepath
+
+
+def gerar_pdf_encomenda(enc, config):
+    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs')
+    os.makedirs(output_dir, exist_ok=True)
+    filepath = os.path.join(output_dir, f"encomenda_{enc['id']}.pdf")
+
+    doc = SimpleDocTemplate(filepath, pagesize=A4,
+        rightMargin=2*cm, leftMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
+    story = []
+
+    # Header
+    hd = [[
+        Paragraph(f"<b>{config.get('empresa_nome','DripArt')}</b>",
+                  ParagraphStyle('th', fontSize=20, textColor=PURPLE, fontName='Helvetica-Bold')),
+        Paragraph(
+            f"{config.get('empresa_cnpj','')}<br/>"
+            f"{config.get('empresa_telefone','')}"
+            f"{(' · WA: ' + config['empresa_whatsapp']) if config.get('empresa_whatsapp') else ''}<br/>"
+            f"{config.get('empresa_email','')}",
+            ParagraphStyle('tr', fontSize=8, textColor=GRAY, alignment=TA_RIGHT))
+    ]]
+    ht = Table(hd, colWidths=[9*cm, 8*cm])
+    ht.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('BOTTOMPADDING',(0,0),(-1,-1),12)]))
+    story.append(ht)
+    story.append(HRFlowable(width="100%", thickness=1, color=PURPLE))
+    story.append(Spacer(1, 0.4*cm))
+
+    story.append(Paragraph("PEDIDO DE ENCOMENDA",
+        ParagraphStyle('dt', fontSize=14, textColor=PURPLE, fontName='Helvetica-Bold', spaceAfter=4)))
+    story.append(Paragraph(
+        f"Encomenda {enc['numero']}  ·  Data do pedido: {_fmt_date(enc.get('data_pedido',''))}",
+        ParagraphStyle('sub', fontSize=9, textColor=GRAY, fontName='Helvetica')))
+    story.append(Spacer(1, 0.4*cm))
+
+    # Info box
+    entrega_label = _fmt_date(enc.get('data_entrega','')) or 'A combinar'
+    info = [[
+        Paragraph("CLIENTE", ParagraphStyle('lbl', fontSize=8, textColor=GRAY)),
+        Paragraph("ENTREGA PREVISTA", ParagraphStyle('lbl', fontSize=8, textColor=GRAY)),
+        Paragraph("VALOR", ParagraphStyle('lbl', fontSize=8, textColor=GRAY))
+    ],[
+        Paragraph(enc.get('cliente_nome','—'), ParagraphStyle('val', fontSize=11, fontName='Helvetica-Bold', textColor=TEXT)),
+        Paragraph(entrega_label, ParagraphStyle('val', fontSize=11, fontName='Helvetica-Bold', textColor=TEXT)),
+        Paragraph(_fmt_brl(enc.get('total', 0)), ParagraphStyle('val', fontSize=12, fontName='Helvetica-Bold', textColor=PURPLE)),
+    ]]
+    it = Table(info, colWidths=[7*cm, 5*cm, 5*cm])
+    it.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,-1),PURPLE_LIGHT),
+        ('LEFTPADDING',(0,0),(-1,-1),10),('RIGHTPADDING',(0,0),(-1,-1),10),
+        ('TOPPADDING',(0,0),(0,0),8),('BOTTOMPADDING',(0,-1),(-1,-1),8),
+    ]))
+    story.append(it)
+    story.append(Spacer(1, 0.5*cm))
+
+    # Descricao
+    story.append(Paragraph("DESCRICAO DO PEDIDO",
+        ParagraphStyle('sec', fontSize=10, fontName='Helvetica-Bold', textColor=PURPLE, spaceAfter=6)))
+    desc_box = [[Paragraph(enc.get('descricao','—'),
+        ParagraphStyle('desc', fontSize=10, textColor=TEXT, leading=16))]]
+    dt = Table(desc_box, colWidths=[17*cm])
+    dt.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,-1),GRAY_LIGHT),
+        ('LEFTPADDING',(0,0),(-1,-1),12),('RIGHTPADDING',(0,0),(-1,-1),12),
+        ('TOPPADDING',(0,0),(-1,-1),10),('BOTTOMPADDING',(0,0),(-1,-1),10),
+        ('ROWBACKGROUNDS',(0,0),(-1,-1),[GRAY_LIGHT]),
+    ]))
+    story.append(dt)
+
+    if enc.get('obs'):
+        story.append(Spacer(1, 0.3*cm))
+        story.append(Paragraph(f"Obs: {enc['obs']}",
+            ParagraphStyle('obs', fontSize=9, textColor=GRAY, fontName='Helvetica', leftIndent=4)))
+
+    story.append(Spacer(1, 1*cm))
+
+    # Assinaturas
+    sig = [[
+        Paragraph("_________________________________<br/>Empresa — " + config.get('empresa_nome','DripArt'),
+            ParagraphStyle('s', fontSize=9, textColor=GRAY, alignment=TA_CENTER)),
+        Paragraph(f"_________________________________<br/>Cliente — {enc.get('cliente_nome','')}",
+            ParagraphStyle('s', fontSize=9, textColor=GRAY, alignment=TA_CENTER)),
+    ]]
+    st = Table(sig, colWidths=[8.5*cm, 8.5*cm])
+    st.setStyle(TableStyle([('TOPPADDING',(0,0),(-1,-1),20)]))
+    story.append(st)
+
+    story.append(Spacer(1, 0.8*cm))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=GRAY_LIGHT))
+    story.append(Spacer(1, 0.2*cm))
+    story.append(Paragraph(
+        f"Documento gerado em {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')} · {config.get('empresa_nome','DripArt')}",
+        ParagraphStyle('footer', fontSize=7, textColor=GRAY, alignment=TA_CENTER)))
+
+    doc.build(story)
+    return filepath

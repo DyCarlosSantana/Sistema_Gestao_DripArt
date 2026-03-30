@@ -1,3 +1,17 @@
+
+  <!-- Busca Global -->
+  <div style="padding:10px 14px 4px;border-bottom:1px solid var(--border)">
+    <div class="global-search-wrap">
+      <span class="global-search-icon">🔍</span>
+      <input type="text" id="global-search-input" class="global-search-input"
+        placeholder="Buscar clientes, vendas, encomendas..."
+        oninput="onGlobalSearch(this.value)"
+        onfocus="if(this.value.length>1)document.getElementById('global-search-results').classList.add('open')"
+        autocomplete="off">
+      <div id="global-search-results" class="global-search-results"></div>
+    </div>
+  </div>
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -176,7 +190,52 @@ select.form-control { cursor: pointer; }
 .empty-state { text-align: center; padding: 48px 24px; color: var(--text-muted); }
 .empty-state-icon { font-size: 36px; margin-bottom: 12px; }
 .empty-state p { font-size: 14px; }
-</style>
+
+    /* ── Calendar view ── */
+    .cal-day{min-height:75px;background:var(--bg-secondary);border-radius:6px;padding:4px;position:relative;}
+    .cal-day.cal-other{opacity:0.3;}
+    .cal-day.cal-today{border:2px solid var(--purple);}
+    .cal-day-num{font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:2px;}
+    .cal-hd{text-align:center;font-size:11px;font-weight:600;color:var(--text-muted);padding:5px 0;text-transform:uppercase;}
+    .cal-evt{border-radius:3px;font-size:10px;padding:2px 4px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:default;color:#fff;}
+
+    
+    /* ── Busca Global ── */
+    .global-search-wrap { position:relative; }
+    .global-search-input {
+      width:280px; padding:7px 14px 7px 36px;
+      border:1.5px solid var(--border); border-radius:20px;
+      background:var(--bg-secondary,#f7f6f2); font-size:13px;
+      color:var(--text); outline:none; transition:border 0.15s;
+    }
+    .global-search-input:focus { border-color:var(--purple); background:#fff; }
+    .global-search-icon {
+      position:absolute; left:11px; top:50%; transform:translateY(-50%);
+      color:var(--text-muted); font-size:14px; pointer-events:none;
+    }
+    .global-search-results {
+      position:absolute; top:calc(100% + 6px); left:0; right:0;
+      background:#fff; border:1px solid var(--border); border-radius:10px;
+      box-shadow:0 8px 24px rgba(0,0,0,0.10); z-index:500;
+      max-height:360px; overflow-y:auto; display:none;
+    }
+    .global-search-results.open { display:block; }
+    .gs-section { padding:6px 0; border-bottom:1px solid var(--border); }
+    .gs-section:last-child { border-bottom:none; }
+    .gs-section-title { padding:4px 14px; font-size:10px; font-weight:700;
+      color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; }
+    .gs-item { padding:8px 14px; cursor:pointer; display:flex;
+      align-items:center; gap:10px; font-size:13px; }
+    .gs-item:hover { background:var(--purple-light); }
+    .gs-item-icon { font-size:16px; flex-shrink:0; }
+    .gs-item-main { flex:1; min-width:0; }
+    .gs-item-title { font-weight:500; color:var(--text);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .gs-item-sub { font-size:11px; color:var(--text-muted); }
+    .gs-empty { padding:20px 14px; text-align:center;
+      color:var(--text-muted); font-size:13px; }
+
+  </style>
 </head>
 <body>
 
@@ -228,7 +287,13 @@ select.form-control { cursor: pointer; }
       <div class="nav-item" data-page="fluxo">
         <span class="nav-dot" style="background:var(--teal)"></span> Fluxo de caixa
       </div>
+      <div class="nav-item" data-page="fiado">
+        <span class="nav-dot" style="background:var(--amber)"></span> Fiado
+      </div>
       <div class="nav-section">Operação</div>
+      <div class="nav-item" data-page="agenda">
+        <span class="nav-dot" style="background:var(--blue)"></span> Agenda
+      </div>
       <div class="nav-item" data-page="encomendas">
         <span class="nav-dot" style="background:var(--purple)"></span> Encomendas
       </div>
@@ -297,6 +362,29 @@ select.form-control { cursor: pointer; }
           </div>
         </div>
       </div>
+      <div class="metrics-grid" style="margin-bottom:16px">
+        <div class="metric-card">
+          <div class="metric-label">Fiado em aberto</div>
+          <div class="metric-value" id="m-fiado-total">—</div>
+          <div class="metric-sub" id="m-fiado-sub"></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Fiado vencido</div>
+          <div class="metric-value danger" id="m-fiado-atrasado" style="color:var(--coral)">—</div>
+          <div class="metric-sub danger" id="m-fiado-atrasado-val" style="color:var(--coral)"></div>
+        </div>
+        <div class="metric-card" id="card-estoque-baixo" style="display:none">
+          <div class="metric-label">Estoque baixo</div>
+          <div class="metric-value" id="m-estoque-baixo" style="color:var(--amber)">—</div>
+          <div class="metric-sub warn">produtos com poco estoque</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Ações</div>
+          <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">
+            <button class="btn btn-sm" onclick="navigateTo('fiado')" style="font-size:11px">Ver fiado</button>
+            <button class="btn btn-sm" onclick="navigateTo('produtos')" style="font-size:11px">Estoque</button>
+          </div>
+      </div>
 
       <div class="qa-grid">
         <div class="qa-btn" onclick="navigateTo('pdv');openModal('modal-venda')">
@@ -356,6 +444,17 @@ select.form-control { cursor: pointer; }
       </div>
     </div>
 
+      <!-- Mini Agenda no Dashboard -->
+      <div class="card" style="margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-weight:600;font-size:14px">📅 Próximos Compromissos (7 dias)</div>
+          <button class="btn btn-sm" onclick="navigateTo('agenda')" style="font-size:11px">Ver agenda</button>
+        </div>
+        <div id="mini-agenda-list" style="font-size:13px;color:var(--text-muted)">Carregando...</div>
+      </div>
+
+    </div><!-- /page-dashboard -->
+
     <!-- PDV / CAIXA -->
     <div class="page" id="page-pdv">
       <div class="page-header">
@@ -389,7 +488,9 @@ select.form-control { cursor: pointer; }
         <button class="btn btn-primary" onclick="openModal('modal-locacao')">+ Nova locação</button>
       </div>
       <div class="filters-bar">
-        <input type="text" id="q-locacoes" class="form-control" placeholder="Buscar por cliente..." style="width:220px" oninput="filterLocacoes()">
+        <input type="text" id="q-locacoes" class="form-control" placeholder="Buscar por cliente..." style="width:200px" oninput="filterLocacoes()">
+        <input type="date" id="loc-data-ini" class="form-control" style="width:150px" onchange="filterLocacoes()">
+        <input type="date" id="loc-data-fim" class="form-control" style="width:150px" onchange="filterLocacoes()">
         <button class="btn btn-sm" onclick="loadLocacoes('')" id="loc-filtro-todos" style="background:var(--purple-light);color:var(--purple)">Todas</button>
         <button class="btn btn-sm" onclick="loadLocacoes('ativo')" id="loc-filtro-ativo">Ativas</button>
         <button class="btn btn-sm" onclick="loadLocacoes('devolvido')" id="loc-filtro-dev">Devolvidas</button>
@@ -440,7 +541,9 @@ select.form-control { cursor: pointer; }
     </div>
 
     <!-- RELATÓRIOS -->
-    <div class="page" id="page-relatorios">
+    
+
+     <div class="page" id="page-relatorios">
       <div class="page-header">
         <div class="page-title">Relatórios</div>
       </div>
@@ -466,10 +569,33 @@ select.form-control { cursor: pointer; }
       </div>
       <div id="relatorio-content">
         <div style="color:var(--text-muted);text-align:center;padding:48px">Selecione o período e clique em Gerar relatório.</div>
-      </div>
-    </div>
+      
 
+      <!-- DRE Anual + Exportações -->
+      <div class="card" style="margin-top:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+          <div class="card-title" style="margin:0">📊 DRE — Resultado Anual</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <input type="number" id="dre-ano" class="form-control" style="width:90px"
+              value="2026" min="2020" max="2035">
+            <button class="btn btn-primary btn-sm" onclick="loadDRE()">Gerar DRE</button>
+            <button class="btn btn-sm" onclick="exportarExcel('vendas')">↓ Vendas CSV</button>
+            <button class="btn btn-sm" onclick="exportarExcel('despesas')">↓ Despesas CSV</button>
+            <button class="btn btn-sm" onclick="exportarExcel('clientes')">↓ Clientes CSV</button>
+            <button class="btn btn-sm" onclick="exportarExcel('locacoes')">↓ Locações CSV</button>
+          </div>
+        </div>
+        <div id="dre-tabela" style="color:var(--text-muted);padding:20px;text-align:center">
+          Selecione o ano e clique em "Gerar DRE"
+        </div>
+      </div>
+
+    </div>
+    </div>
+    
     <!-- CLIENTES -->
+    
+      
     <div class="page" id="page-clientes">
       <div class="page-header">
         <div class="page-title">Clientes</div>
@@ -508,6 +634,14 @@ select.form-control { cursor: pointer; }
         <div class="page-title">Produtos e serviços</div>
         <button class="btn btn-primary" onclick="openModal('modal-produto')">+ Novo produto</button>
       </div>
+      <div class="filters-bar">
+        <input type="text" id="q-produtos" class="form-control" placeholder="Buscar produto..." style="width:260px" oninput="filterProdutos()">
+        <select id="filtro-estoque" class="form-control" style="width:160px" onchange="filterProdutos()">
+          <option value="">Todo estoque</option>
+          <option value="baixo">Estoque baixo (≤5)</option>
+          <option value="zerado">Estoque zerado</option>
+        </select>
+      </div>
       <div class="card">
         <div class="table-wrap">
           <table>
@@ -531,7 +665,10 @@ select.form-control { cursor: pointer; }
       </div>
       <div class="two-col-grid">
         <div class="card">
-          <div class="card-title">Itens individuais</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div class="card-title" style="margin:0">Itens individuais</div>
+            <input type="text" id="q-itens-loc" class="form-control" placeholder="Buscar..." style="width:180px" oninput="filterItensLocacao()">
+          </div>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Nome</th><th>Categoria</th><th>Diária</th><th>Qtd</th><th></th></tr></thead>
@@ -544,6 +681,26 @@ select.form-control { cursor: pointer; }
           <div id="lista-kits"></div>
         </div>
       </div>
+    
+      <!-- Verificar Disponibilidade -->
+      <div class="card" style="margin-top:20px">
+        <div class="card-title">📅 Verificar Disponibilidade por Período</div>
+        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">De</label>
+            <input type="date" id="disp-ini" class="form-control" style="width:160px">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Até</label>
+            <input type="date" id="disp-fim" class="form-control" style="width:160px">
+          </div>
+          <button class="btn btn-primary" onclick="verificarDisponibilidade()">Verificar</button>
+        </div>
+        <div id="disp-resultado" style="font-size:13px;color:var(--text-muted)">
+          Selecione um período e clique em Verificar
+        </div>
+      </div>
+
     </div>
 
     <!-- DESPESAS -->
@@ -566,6 +723,32 @@ select.form-control { cursor: pointer; }
         <div class="table-wrap">
           <table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Pagamento</th><th>Valor</th><th>Ações</th></tr></thead>
           <tbody id="tbody-despesas"><tr><td colspan="6" style="padding:32px;text-align:center;color:var(--text-muted)">Carregando...</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- FIADO -->
+    <div class="page" id="page-fiado">
+      <div class="page-header">
+        <div class="page-title">Controle de fiado</div>
+      </div>
+      <div class="metrics-grid" style="margin-bottom:16px">
+        <div class="metric-card"><div class="metric-label">Total em aberto</div><div class="metric-value" id="fiado-m-total">—</div></div>
+        <div class="metric-card"><div class="metric-label">Vencido</div><div class="metric-value" id="fiado-m-atrasado" style="color:var(--coral)">—</div></div>
+        <div class="metric-card"><div class="metric-label">Vence em 7 dias</div><div class="metric-value" id="fiado-m-vencendo" style="color:var(--amber)">—</div></div>
+        <div class="metric-card"><div class="metric-label">Qtd. clientes</div><div class="metric-value" id="fiado-m-qtd">—</div></div>
+      </div>
+      <div class="filters-bar">
+        <button class="btn btn-sm" id="fiado-btn-todos" onclick="loadFiado('')" style="background:var(--purple-light);color:var(--purple)">Todos</button>
+        <button class="btn btn-sm" id="fiado-btn-atrasado" onclick="loadFiado('atrasado')">Vencidos</button>
+        <button class="btn btn-sm" id="fiado-btn-vencendo" onclick="loadFiado('vencendo')">Vence em breve</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Cliente</th><th>Valor</th><th>Vencimento</th><th>Status prazo</th><th>Data venda</th><th>Ações</th></tr></thead>
+            <tbody id="tbody-fiado"></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -595,6 +778,78 @@ select.form-control { cursor: pointer; }
       </div>
     </div>
 
+    <!-- AGENDA -->
+    <div class="page" id="page-agenda">
+      <div class="page-header">
+        <div class="page-title">Agenda & Compromissos</div>
+        <button class="btn btn-primary" onclick="openModal('modal-agenda')">+ Novo Evento</button>
+      </div>
+      <div class="filters-bar">
+        <button class="btn btn-sm" onclick="navMes(-1)">‹</button>
+        <input type="month" id="agenda-mes" class="form-control" style="width:160px" onchange="loadAgenda()">
+        <button class="btn btn-sm" onclick="navMes(1)">›</button>
+        <button class="btn btn-sm" id="btn-view-cal" onclick="setAgendaView('cal')"
+          style="background:var(--purple);color:#fff;margin-left:8px">📅 Calendário</button>
+        <button class="btn btn-sm" id="btn-view-list" onclick="setAgendaView('list')">☰ Lista</button>
+      </div>
+      <!-- Calendar view -->
+      <div id="agenda-cal-view">
+        <div class="card">
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px" id="cal-header-days"></div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px" id="cal-body"></div>
+        </div>
+      </div>
+      <!-- List view -->
+      <div id="agenda-list-view" style="display:none">
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Data</th><th>Hora</th><th>Tipo</th><th>Título</th><th>Cliente</th><th>Status</th><th>Ações</th></tr></thead>
+              <tbody id="tbody-agenda">
+                <tr><td colspan="7" style="padding:32px;text-align:center;color:var(--text-muted)">Carregando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- O Modal da Agenda -->
+     <div class="modal-overlay" id="modal-agenda">
+        <div class="modal">
+          <div class="modal-header">
+            <div class="modal-title">Novo Evento Manual</div>
+            <button class="modal-close" onclick="closeModal('modal-agenda')">×</button>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Título do compromisso *</label>
+              <input type="text" id="age-titulo" class="form-control">
+            </div>
+            <div class="form-grid form-grid-2">
+              <div class="form-group">
+                <label class="form-label">Data *</label>
+                <input type="date" id="age-data" class="form-control">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Hora</label>
+                <input type="time" id="age-hora" class="form-control" value="09:00">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nome do Cliente (opcional)</label>
+              <input type="text" id="age-cliente" class="form-control" list="clientes-list">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Detalhes</label>
+              <textarea id="age-desc" class="form-control" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn" onclick="closeModal('modal-agenda')">Cancelar</button>
+            <button class="btn btn-primary" onclick="salvarEvento()">Salvar Evento</button>
+          </div>
+        </div>
+      </div>
     <!-- ENCOMENDAS -->
     <div class="page" id="page-encomendas">
       <div class="page-header">
@@ -647,6 +902,9 @@ select.form-control { cursor: pointer; }
       <div class="page-header">
         <div class="page-title">Serviços</div>
         <button class="btn btn-primary" onclick="openModal('modal-servico')">+ Novo serviço</button>
+      </div>
+      <div class="filters-bar">
+        <input type="text" id="q-servicos" class="form-control" placeholder="Buscar serviço..." style="width:260px" oninput="filterServicos()">
       </div>
       <div class="card">
         <div class="table-wrap">
@@ -712,7 +970,10 @@ select.form-control { cursor: pointer; }
       </div>
       <!-- Tabela de materiais cadastrados -->
       <div class="card" style="margin-top:16px">
-        <div class="card-title">Materiais cadastrados</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="card-title" style="margin:0">Materiais cadastrados</div>
+          <input type="text" id="q-materiais" class="form-control" placeholder="Buscar material..." style="width:220px" oninput="filterMateriais()">
+        </div>
         <div class="table-wrap">
           <table><thead><tr><th>Material</th><th>Tipo</th><th>Preço venda</th><th>Custo</th><th>Margem</th><th>Ações</th></tr></thead>
           <tbody id="tbody-materiais"></tbody></table>
@@ -790,8 +1051,36 @@ select.form-control { cursor: pointer; }
           <div id="lista-backups" style="font-size:12px;color:var(--text-muted)">Carregando backups...</div>
         </div>
         </div>
+      
+      <!-- Configurações de Acesso -->
+      <div class="card" style="margin-top:20px">
+        <div class="card-title">🔐 Acesso e Segurança</div>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
+          Configure os usuários do sistema. O <b>Admin</b> tem acesso total. O <b>Operador</b> não vê Relatórios, Fluxo de Caixa e Configurações.
+        </p>
+        <div class="form-grid form-grid-2">
+          <div class="form-group">
+            <label class="form-label">Usuário Admin</label>
+            <input type="text" id="conf-login-usuario" class="form-control" placeholder="admin">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Senha Admin</label>
+            <input type="password" id="conf-login-senha" class="form-control" placeholder="••••••••">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Usuário Operador (opcional)</label>
+            <input type="text" id="conf-op-usuario" class="form-control" placeholder="operador">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Senha Operador</label>
+            <input type="password" id="conf-op-senha" class="form-control" placeholder="••••••••">
+          </div>
+        </div>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:8px">
+          ⚠️ Padrão inicial: usuário <b>admin</b>, senha <b>dripart</b>. Altere na primeira utilização.
+        </p>
       </div>
-    </div>
+</div>
 
   </div><!-- /main-content -->
 </div><!-- /app -->
@@ -805,6 +1094,8 @@ select.form-control { cursor: pointer; }
       <div class="modal-title">Nova venda</div>
       <button class="modal-close" onclick="closeModal('modal-venda')">×</button>
     </div>
+
+
     <div class="form-grid">
       <div class="form-grid form-grid-2">
         <div class="form-group">
@@ -820,6 +1111,12 @@ select.form-control { cursor: pointer; }
             <option value="servico">Serviço</option>
             <option value="outro">Outro</option>
           </select>
+        </div>
+      </div>
+      <div id="venda-vencimento-row" style="display:none">
+        <div class="form-group">
+          <label class="form-label">Data de vencimento do fiado</label>
+          <input type="date" id="venda-vencimento" class="form-control">
         </div>
       </div>
 
@@ -841,7 +1138,9 @@ select.form-control { cursor: pointer; }
         </div>
         <button class="btn btn-sm" onclick="adicionarItemVenda()">+ Adicionar item</button>
         <button class="btn btn-sm" onclick="abrirCalcParaVenda()" style="margin-left:8px">🖨️ Calcular impressão</button>
-        <button class="btn btn-sm" onclick="toggleServicosSelector()" style="margin-left:8px">🔧 Serviços</button>
+        <button class="btn btn-sm" onclick="toggleServicosSelector()" style="margin-left:8px">🔧 Servicos</button>
+        <button class="btn btn-sm" onclick="toggleProdutosSelector()" style="margin-left:8px">📦 Produtos</button>
+        <div id="produtos-selector" style="display:none;margin-top:8px;border:0.5px solid var(--border);border-radius:8px;padding:10px"><input type="text" id="busca-produto-pdv" class="form-control" placeholder="Buscar produto..." oninput="buscarProdutosPDV(this.value)" style="margin-bottom:8px"><div id="produtos-lista-pdv" style="max-height:140px;overflow-y:auto"></div></div>
         <div id="servicos-selector" style="display:none;margin-top:8px;border:0.5px solid var(--border);border-radius:8px;padding:10px;max-height:160px;overflow-y:auto">
           <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Clique para adicionar serviço</div>
           <div id="servicos-lista-pdv"></div>
@@ -1246,7 +1545,17 @@ select.form-control { cursor: pointer; }
         </div>
         <div class="form-group">
           <label class="form-label">Valor total (R$)</label>
-          <input type="number" id="enc-total" class="form-control" step="0.01" value="0">
+          <input type="number" id="enc-total" class="form-control" step="0.01" value="0" oninput="calcSaldoEncomenda()">
+        </div>
+      </div>
+      <div class="form-grid form-grid-2">
+        <div class="form-group">
+          <label class="form-label">Sinal / Entrada (R$)</label>
+          <input type="number" id="enc-sinal" class="form-control" step="0.01" value="0"
+            oninput="calcSaldoEncomenda()">
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:8px">
+          <span id="enc-saldo-display" style="font-size:13px;color:var(--amber);font-weight:500"></span>
         </div>
       </div>
       <div class="form-group">
@@ -1328,11 +1637,11 @@ select.form-control { cursor: pointer; }
         <div class="form-grid form-grid-2" style="gap:10px">
           <div class="form-group">
             <label class="form-label">Preço de venda/m² (R$)</label>
-            <input type="number" id="mat-preco-m2" class="form-control" step="0.01" value="0">
+            <input type="number" id="mat-preco-m2" class="form-control" step="0.01" value="0" oninput="calcularMargemAuto()">
           </div>
           <div class="form-group">
             <label class="form-label">Custo do material/m² (R$)</label>
-            <input type="number" id="mat-custo" class="form-control" step="0.01" value="0">
+            <input type="number" id="mat-custo" class="form-control" step="0.01" value="0" oninput="calcularMargemAuto()">
           </div>
         </div>
       </div>
@@ -1340,11 +1649,11 @@ select.form-control { cursor: pointer; }
         <div class="form-grid form-grid-2" style="gap:10px">
           <div class="form-group">
             <label class="form-label">Preço de venda/unidade (R$)</label>
-            <input type="number" id="mat-preco-unid" class="form-control" step="0.01" value="0">
+            <input type="number" id="mat-preco-unid" class="form-control" step="0.01" value="0" oninput="calcularMargemAuto()">
           </div>
           <div class="form-group">
             <label class="form-label">Custo/unidade (R$)</label>
-            <input type="number" id="mat-custo-unid" class="form-control" step="0.01" value="0">
+            <input type="number" id="mat-custo-unid" class="form-control" step="0.01" value="0" oninput="calcularMargemAuto()">
           </div>
         </div>
       </div>
@@ -1420,6 +1729,14 @@ select.form-control { cursor: pointer; }
 <div class="toast" id="toast"></div>
 
 <script>
+
+
+
+
+
+
+
+
 const API = 'http://localhost:5000/api';
 let vendaItems = [], locItems = [], orcItems = [], kitItems = [];
 let callerContext = null;
@@ -1462,22 +1779,25 @@ document.querySelectorAll('.nav-item').forEach(item => {
 
 function loadPage(page) {
   const map = {
-    dashboard:    loadDashboard,
-    pdv:          loadVendas,
-    locacoes:     () => loadLocacoes(''),
-    orcamentos:   loadOrcamentos,
-    clientes:     loadClientes,
-    produtos:     loadProdutos,
-    relatorios:   initRelatorio,
-    despesas:     () => { initDespesasDates(); loadDespesas(); },
-    fluxo:        initFluxoDates,
-    encomendas:   () => loadEncomendas(''),
-    servicos:     loadServicos,
-    impressao:    loadImpressaoPage,
-    configuracoes: loadConfig,
+    dashboard:       loadDashboard,
+    pdv:             loadVendas,
+    locacoes:        () => loadLocacoes(''),
+    orcamentos:      loadOrcamentos,
+    clientes:        loadClientes,
+    produtos:        loadProdutos,
+    relatorios:      initRelatorio,
+    despesas:        () => { initDespesasDates(); loadDespesas(); },
+    fluxo:           initFluxoDates,
+    agenda:          loadAgendaPage,
+    encomendas:      () => loadEncomendas(''),
+    servicos:        loadServicos,
+    impressao:       loadImpressaoPage,
+    configuracoes:   loadConfig,
     'itens-locacao': () => { loadItensLocacao(); loadKits(); },
+    fiado:           loadFiadoPage,
   };
-  if (map[page]) map[page]();
+  try { if (map[page]) map[page](); }
+  catch(e) { console.error('loadPage error:', page, e); }
 }
 
 // Modal open/close
@@ -1562,6 +1882,14 @@ async function loadDashboard() {
     document.getElementById('m-saidas').textContent = brl(d.mes_saidas || 0);
     // Encomendas
     document.getElementById('m-encomendas').textContent = d.encomendas_pendentes || 0;
+    document.getElementById('m-fiado-total').textContent = brl(d.fiado_total_valor||0);
+    const fiadoSub = document.getElementById('m-fiado-sub');
+    if (fiadoSub) { fiadoSub.textContent = (d.fiado_total_count||0)+' venda(s) em aberto'; fiadoSub.className = (d.fiado_total_count>0)?'metric-sub warn':'metric-sub'; }
+    const mFiadoAt = document.getElementById('m-fiado-atrasado');
+    if (mFiadoAt) mFiadoAt.textContent = String(d.fiado_atrasado_count||0);
+    const mFiadoAtVal = document.getElementById('m-fiado-atrasado-val');
+    if (mFiadoAtVal) mFiadoAtVal.textContent = d.fiado_atrasado_count>0?brl(d.fiado_atrasado_valor)+' vencidos':'nenhum vencido';
+    fetch(API+'/produtos/estoque-baixo?limite=5').then(r=>r.json()).then(rows=>{ if(rows.length>0){const c=document.getElementById('card-estoque-baixo');if(c)c.style.display='';const m=document.getElementById('m-estoque-baixo');if(m)m.textContent=rows.length;} }).catch(()=>{});
     const encSub = document.getElementById('m-enc-sub');
     if (d.encomendas_atrasadas > 0) {
       encSub.textContent = d.encomendas_atrasadas + ' atrasada(s)!';
@@ -1588,6 +1916,7 @@ async function loadDashboard() {
       </div>`).join('') : '<div style="color:var(--text-muted);font-size:13px">Nenhuma movimentacao</div>';
   } catch(e) { toast('Erro ao carregar dashboard. Backend rodando?', 'error'); }
   await loadEvolucaoChart();
+  loadMiniAgenda();
 }
 
 function renderAlertas(alertas, atrasadas) {
@@ -1642,8 +1971,9 @@ async function loadVendas() {
       <td>${statusBadge(v.status)}</td><td>${fmtDate(v.criado_em)}</td>
       <td style="display:flex;gap:5px;flex-wrap:wrap">
         <button class="btn btn-sm" onclick="editarVendaById(${v.id})">Editar</button>
+        ${v.status==='fiado'?`<button class="btn btn-sm btn-success" onclick="receberFiado(${v.id})">Receber</button>`:''}
         <button class="btn btn-sm btn-danger" onclick="excluirVenda(${v.id})">Excluir</button>
-        <button class="btn btn-sm" onclick="downloadPdfVenda(${v.id})">PDF</button>
+        <button class="btn btn-sm" onclick="downloadPdfVenda(${v.id})">PDF</button><button class="btn btn-sm" onclick="imprimirRecibo(${v.id})" style="margin-left:3px" title="Imprimir recibo">🖨️</button>
       </td>
     </tr>`).join('') : '<tr><td colspan="8" style="padding:32px;text-align:center;color:var(--text-muted)">Nenhuma venda encontrada</td></tr>';
 }
@@ -1689,7 +2019,8 @@ async function salvarVenda() {
     subtotal:sub, desconto:desc, total:Math.max(0,sub-desc),
     forma_pagamento:document.getElementById('venda-pagamento').value,
     status:document.getElementById('venda-status').value,
-    obs:document.getElementById('venda-obs').value, itens:vendaItems
+    obs:document.getElementById('venda-obs').value,
+    data_vencimento:document.getElementById('venda-vencimento')?.value||null, itens:vendaItems
   };
   const url = editId ? `${API}/vendas/${editId}` : `${API}/vendas`;
   const method = editId ? 'PUT' : 'POST';
@@ -1706,6 +2037,8 @@ async function abrirEditarVenda(v) {
   document.getElementById('venda-status').value=v.status||'pago';
   document.getElementById('venda-obs').value=v.obs||'';
   document.getElementById('venda-desconto').value=v.desconto||0;
+  const vencEl=document.getElementById('venda-vencimento');if(vencEl)vencEl.value=v.data_vencimento||'';
+  toggleVencimentoFiado(v.forma_pagamento||'dinheiro');
   renderVendaItems();
   document.getElementById('modal-venda').dataset.editId = v.id;
   resetModalTitle('modal-venda',`Editar venda #${v.id}`);
@@ -1756,8 +2089,15 @@ async function loadLocacoes(status) {
   renderLocacoesTabela(rows);
 }
 function filterLocacoes() {
-  const q = (document.getElementById('q-locacoes')?.value||'').toLowerCase();
-  renderLocacoesTabela(_locacoesCache.filter(l=>!q||l.cliente_nome.toLowerCase().includes(q)));
+  const q=(document.getElementById('q-locacoes')?.value||'').toLowerCase();
+  const ini=document.getElementById('loc-data-ini')?.value||'';
+  const fim=document.getElementById('loc-data-fim')?.value||'';
+  renderLocacoesTabela(_locacoesCache.filter(l=>{
+    if(q&&!l.cliente_nome.toLowerCase().includes(q))return false;
+    if(ini&&l.data_retirada<ini)return false;
+    if(fim&&l.data_devolucao>fim)return false;
+    return true;
+  }));
 }
 function renderLocacoesTabela(rows) {
   const tbody = document.getElementById('tbody-locacoes');
@@ -2069,9 +2409,10 @@ async function loadClientes(){
   tbody.innerHTML=rows.length?rows.map(c=>`
     <tr>
       <td>${c.nome}</td><td>${c.telefone||'—'}</td><td>${c.email||'—'}</td><td>${c.cpf_cnpj||'—'}</td>
-      <td style="display:flex;gap:5px">
+      <td style="display:flex;gap:5px;flex-wrap:wrap">
         <button class="btn btn-sm" onclick="editarClienteById(${c.id})">Editar</button>
-        <button class="btn btn-sm" style="color:var(--purple)" onclick="verHistoricoCliente(${c.id})">Historico</button>
+        <button class="btn btn-sm" style="color:var(--purple)" onclick="verHistoricoCliente(${c.id})">Histórico</button>
+        ${c.telefone?`<a href="https://wa.me/55${c.telefone.replace(/\D/g,'')}" target="_blank" class="btn btn-sm" style="background:#25D366;color:#fff;text-decoration:none" title="Abrir WhatsApp">💬 WPP</a>`:''}
       </td>
     </tr>`).join(''):'<tr><td colspan="5" style="padding:32px;text-align:center;color:var(--text-muted)">Nenhum cliente</td></tr>';
   loadTopClientes('mes');
@@ -2170,10 +2511,26 @@ function switchHistTab(tab){
 }
 
 // Produtos
+let _produtosCache=[];
 async function loadProdutos(){
   const rows=await fetch(`${API}/produtos`).then(r=>r.json()).catch(()=>[]);
+  _produtosCache=rows;
   rows.forEach(p=>_store.produtos[p.id]=p);
+  renderProdutosTabela(rows);
+}
+function filterProdutos(){
+  const q=(document.getElementById('q-produtos')?.value||'').toLowerCase();
+  const est=document.getElementById('filtro-estoque')?.value||'';
+  renderProdutosTabela(_produtosCache.filter(p=>{
+    if(q&&!p.nome.toLowerCase().includes(q)&&!(p.categoria||'').toLowerCase().includes(q))return false;
+    if(est==='baixo'&&p.estoque>5)return false;
+    if(est==='zerado'&&p.estoque!==0)return false;
+    return true;
+  }));
+}
+function renderProdutosTabela(rows){
   const tbody=document.getElementById('tbody-produtos');
+  if(!tbody)return;
   tbody.innerHTML=rows.length?rows.map(p=>`
     <tr>
       <td>${p.nome}</td><td>${p.categoria||'—'}</td><td style="font-weight:500">${brl(p.preco_venda)}</td><td>${p.estoque}</td>
@@ -2183,6 +2540,7 @@ async function loadProdutos(){
       </td>
     </tr>`).join(''):'<tr><td colspan="5" style="padding:32px;text-align:center;color:var(--text-muted)">Nenhum produto</td></tr>';
 }
+
 function editarProduto(p){
   document.getElementById('produto-id').value=p.id;
   document.getElementById('produto-nome').value=p.nome;
@@ -2211,10 +2569,20 @@ async function excluirProduto(id){
 }
 
 // Itens de locacao
+let _itensLocCache=[];
 async function loadItensLocacao(){
   const rows=await fetch(`${API}/itens-locacao`).then(r=>r.json()).catch(()=>[]);
+  _itensLocCache=rows;
   rows.forEach(it=>_store.itensLoc[it.id]=it);
+  renderItensLocTabela(rows);
+}
+function filterItensLocacao(){
+  const q=(document.getElementById('q-itens-loc')?.value||'').toLowerCase();
+  renderItensLocTabela(_itensLocCache.filter(it=>!q||it.nome.toLowerCase().includes(q)||(it.categoria||'').toLowerCase().includes(q)));
+}
+function renderItensLocTabela(rows){
   const tbody=document.getElementById('tbody-itens-locacao');
+  if(!tbody)return;
   tbody.innerHTML=rows.length?rows.map(it=>`
     <tr>
       <td>${it.nome}</td><td>${it.categoria||'—'}</td><td>${brl(it.preco_diaria)}/dia</td><td>${it.quantidade_total}</td>
@@ -2224,6 +2592,7 @@ async function loadItensLocacao(){
       </td>
     </tr>`).join(''):'<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--text-muted)">Nenhum item</td></tr>';
 }
+
 async function loadKits(){
   const kits=await fetch(`${API}/kits`).then(r=>r.json()).catch(()=>[]);
   kits.forEach(k=>_store.kits[k.id]=k);
@@ -2403,6 +2772,122 @@ async function loadFluxo(){
   document.getElementById('tbody-saidas').innerHTML=d.saidas.length?d.saidas.map(s=>`<tr><td>${fmtDate(s.data)}</td><td>${s.descricao}</td><td>${s.categoria}</td><td style="text-align:right;font-weight:500;color:var(--coral)">- ${brl(s.valor)}</td></tr>`).join(''):'<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--text-muted)">Sem saidas</td></tr>';
 }
 
+// Agenda
+// --- LÓGICA DA AGENDA ---
+function loadAgendaPage() {
+  const mes = document.getElementById('agenda-mes');
+  if (mes && !mes.value) mes.value = new Date().toISOString().slice(0,7);
+  const dias=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const hdr=document.getElementById('cal-header-days');
+  if(hdr) hdr.innerHTML=dias.map(d=>`<div class="cal-hd">${d}</div>`).join('');
+  loadAgenda();
+}
+
+let _agendaView='cal';
+
+function setAgendaView(view){
+  _agendaView=view;
+  const cv=document.getElementById('agenda-cal-view');
+  const lv=document.getElementById('agenda-list-view');
+  if(cv) cv.style.display=view==='cal'?'':'none';
+  if(lv) lv.style.display=view==='list'?'':'none';
+  const bc=document.getElementById('btn-view-cal');
+  const bl=document.getElementById('btn-view-list');
+  if(bc){bc.style.background=view==='cal'?'var(--purple)':'';bc.style.color=view==='cal'?'#fff':'';}
+  if(bl){bl.style.background=view==='list'?'var(--purple)':'';bl.style.color=view==='list'?'#fff':'';}
+  loadAgenda();
+}
+
+function navMes(delta){
+  const inp=document.getElementById('agenda-mes');
+  if(!inp||!inp.value) return;
+  const [y,m]=inp.value.split('-').map(Number);
+  const d=new Date(y,m-1+delta,1);
+  inp.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  loadAgenda();
+}
+
+function renderCalendario(eventos,mesStr){
+  const [y,m]=mesStr.split('-').map(Number);
+  const hoje=new Date().toISOString().split('T')[0];
+  const first=new Date(y,m-1,1).getDay();
+  const days=new Date(y,m,0).getDate();
+  const byDate={};
+  eventos.forEach(e=>{(byDate[e.data_inicio]||(byDate[e.data_inicio]=[])).push(e);});
+  const body=document.getElementById('cal-body');
+  if(!body) return;
+  let html='';
+  for(let i=0;i<first;i++) html+='<div class="cal-day cal-other"></div>';
+  for(let d=1;d<=days;d++){
+    const ds=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const evs=byDate[ds]||[];
+    html+=`<div class="cal-day${ds===hoje?' cal-today':''}">
+      <div class="cal-day-num">${d}</div>
+      ${evs.slice(0,3).map(e=>`<div class="cal-evt" style="background:${e.cor||'#534AB7'}" title="${(e.titulo||'').replace(/"/g,'')}">${e.titulo}</div>`).join('')}
+      ${evs.length>3?`<div style="font-size:10px;color:var(--text-muted)">+${evs.length-3}</div>`:''}
+    </div>`;
+  }
+  const tot=first+days;
+  for(let i=0;i<(tot%7===0?0:7-tot%7);i++) html+='<div class="cal-day cal-other"></div>';
+  body.innerHTML=html;
+}
+
+async function loadAgenda(){
+  const mesEl=document.getElementById('agenda-mes');
+  if(!mesEl) return;
+  const mes=mesEl.value||new Date().toISOString().slice(0,7);
+  const rows=await fetch(`${API}/agenda?mes=${mes}`).then(r=>r.json()).catch(()=>[]);
+  const ico={locacao:'📦',encomenda:'🎨',compromisso:'📋',entrega:'🚚'};
+  const tbody=document.getElementById('tbody-agenda');
+  if(tbody){
+    tbody.innerHTML=rows.length?rows.map(a=>`
+      <tr>
+        <td>${fmtDate(a.data_inicio)}</td><td>${a.hora_inicio||'—'}</td>
+        <td><span class="badge" style="background:${a.cor||'#534AB7'}22;color:${a.cor||'#534AB7'}">${ico[a.tipo]||''} ${a.tipo}</span></td>
+        <td style="font-weight:500">${a.titulo}</td><td>${a.cliente_nome||'—'}</td>
+        <td>${statusBadge(a.status)}</td>
+        <td><button class="btn btn-sm btn-danger" onclick="excluirEvento(${a.id})">Excluir</button></td>
+      </tr>`).join('')
+    :'<tr><td colspan="7" style="padding:32px;text-align:center;color:var(--text-muted)">Nenhum evento neste mês</td></tr>';
+  }
+  if(_agendaView==='cal') renderCalendario(rows, mes);
+}
+
+
+
+async function salvarEvento() {
+    const payload = {
+        titulo: document.getElementById('age-titulo').value,
+        data_inicio: document.getElementById('age-data').value,
+        hora_inicio: document.getElementById('age-hora').value,
+        cliente_nome: document.getElementById('age-cliente').value,
+        descricao: document.getElementById('age-desc').value,
+        tipo: 'compromisso', 
+        cor: '#534AB7' // Roxo padrão para compromissos manuais
+    };
+    if(!payload.titulo || !payload.data_inicio) { toast('Título e data são obrigatórios', 'error'); return; }
+    
+    const res = await fetch(`${API}/agenda`, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if(res.ok) { 
+        toast('Evento criado!', 'success'); 
+        closeModal('modal-agenda'); 
+        document.getElementById('age-titulo').value = '';
+        document.getElementById('age-desc').value = '';
+        loadAgenda(); 
+    } else {
+        toast('Erro ao salvar evento', 'error');
+    }
+}
+
+async function excluirEvento(id) {
+    if(!confirm('Tem certeza que deseja excluir este evento?')) return;
+    const res = await fetch(`${API}/agenda/${id}`, { method: 'DELETE' });
+    if(res.ok) {
+        toast('Evento removido', 'success'); 
+        loadAgenda(); 
+    }
+}
+
 // Encomendas
 const STATUS_ENC=['pedido','producao','pronto','entregue'];
 const STATUS_ENC_NEXT={pedido:'producao',producao:'pronto',pronto:'entregue'};
@@ -2438,12 +2923,15 @@ function renderKanban(rows){
           ${e.total>0?`<span style="font-size:11px;font-weight:500">${brl(e.total)}</span>`:''}
         </div>
         <div style="font-size:13px;font-weight:500;margin-bottom:3px">${e.cliente_nome}</div>
+        ${e.sinal>0?'<div style="font-size:11px;color:var(--teal);margin-bottom:2px">Sinal: '+brl(e.sinal)+' · Saldo: '+brl(Math.max(0,e.total-e.sinal))+'</div>':''}
         <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;line-height:1.4">${e.descricao.length>80?e.descricao.slice(0,80)+'...':e.descricao}</div>
         <div style="font-size:11px;color:${prazoColor};margin-bottom:8px">${prazoLabel}${atrasada?' - ATRASADA':''}</div>
         <div style="display:flex;gap:5px;flex-wrap:wrap">
           ${nextStatus?`<button class="btn btn-sm btn-success" style="font-size:11px" onclick="avancarEncomenda(${e.id},'${nextStatus}')">-> ${STATUS_ENC_LABEL[nextStatus]}</button>`:''}
           ${e.status==='pronto'?`<button class="btn btn-sm" style="font-size:11px;background:var(--teal);color:white;border-color:var(--teal)" onclick="entregarEGerarVenda(${e.id})">Entregar + Venda</button>`:''}
           <button class="btn btn-sm" style="font-size:11px" onclick="editarEncById(${e.id})">Editar</button>
+          <button class="btn btn-sm" style="font-size:11px;background:#25D366;color:#fff" onclick="wppEncomenda(${e.id})" title="Enviar mensagem WhatsApp">💬</button>
+          <button class="btn btn-sm" style="font-size:11px" onclick="window.open('${API}/encomendas/${e.id}/pdf','_blank')">PDF</button>
         </div>
       </div>`;
   });
@@ -2462,6 +2950,9 @@ function editarEncomenda(e){
   document.getElementById('enc-entrega').value=e.data_entrega||'';
   document.getElementById('enc-total').value=e.total||0;
   document.getElementById('enc-obs').value=e.obs||'';
+  const encSinal=document.getElementById('enc-sinal');
+  if(encSinal) encSinal.value=e.sinal||0;
+  calcSaldoEncomenda();
   document.getElementById('modal-encomenda').classList.add('open');
 }
 async function salvarEncomenda(){
@@ -2469,7 +2960,7 @@ async function salvarEncomenda(){
   const desc=document.getElementById('enc-desc').value.trim();
   if (!cliente||!desc){toast('Cliente e descricao sao obrigatorios','error');return;}
   const id=document.getElementById('enc-id').value;
-  const payload={cliente_nome:cliente,descricao:desc,status:document.getElementById('enc-status').value,data_entrega:document.getElementById('enc-entrega').value,total:parseFloat(document.getElementById('enc-total').value)||0,obs:document.getElementById('enc-obs').value};
+  const payload={cliente_nome:cliente,descricao:desc,status:document.getElementById('enc-status').value,data_entrega:document.getElementById('enc-entrega').value,total:parseFloat(document.getElementById('enc-total').value)||0,sinal:parseFloat(document.getElementById('enc-sinal')?document.getElementById('enc-sinal').value:0)||0,obs:document.getElementById('enc-obs').value};
   const url=id?`${API}/encomendas/${id}`:`${API}/encomendas`;
   const method=id?'PUT':'POST';
   const res=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
@@ -2488,10 +2979,20 @@ async function entregarEGerarVenda(id){
 }
 
 // Servicos
+let _servicosCache=[];
 async function loadServicos(){
   const rows=await fetch(`${API}/servicos`).then(r=>r.json()).catch(()=>[]);
+  _servicosCache=rows;
   rows.forEach(s=>_store.servicos[s.id]=s);
+  renderServicosTabela(rows);
+}
+function filterServicos(){
+  const q=(document.getElementById('q-servicos')?.value||'').toLowerCase();
+  renderServicosTabela(_servicosCache.filter(s=>!q||s.nome.toLowerCase().includes(q)||(s.categoria||'').toLowerCase().includes(q)));
+}
+function renderServicosTabela(rows){
   const tbody=document.getElementById('tbody-servicos');
+  if(!tbody)return;
   const tipoLabel={fixo:'Preco fixo',hora:'Por hora',unidade:'Por unidade'};
   tbody.innerHTML=rows.length?rows.map(s=>`
     <tr>
@@ -2542,6 +3043,7 @@ function toggleMatFields(){
   const tipo=document.getElementById('mat-tipo').value;
   document.getElementById('mat-m2-fields').style.display=tipo==='m2'?'':'none';
   document.getElementById('mat-unid-fields').style.display=tipo==='unidade'?'':'none';
+  calcularMargemAuto();
 }
 async function loadImpressaoPage(){
   materiaisCache=await fetch(`${API}/materiais`).then(r=>r.json()).catch(()=>[]);
@@ -2638,6 +3140,12 @@ async function loadConfig(){
   f('cfg-email','empresa_email');f('cfg-endereco','empresa_endereco');
   f('cfg-validade','orcamento_validade_dias');
   f('cfg-whatsapp','empresa_whatsapp');f('cfg-instagram','empresa_instagram');f('cfg-site','empresa_site');
+  // Login config
+  const g=id=>document.getElementById(id);
+  if(g('conf-login-usuario')) g('conf-login-usuario').value=cfg.login_usuario||'';
+  if(g('conf-login-senha'))   g('conf-login-senha').value=cfg.login_senha||'';
+  if(g('conf-op-usuario'))    g('conf-op-usuario').value=cfg.login_op_usuario||'';
+  if(g('conf-op-senha'))      g('conf-op-senha').value=cfg.login_op_senha||'';
   loadListaBackups();
 }
 async function salvarConfig(){
@@ -2651,6 +3159,10 @@ async function salvarConfig(){
     empresa_whatsapp:document.getElementById('cfg-whatsapp')?.value||'',
     empresa_instagram:document.getElementById('cfg-instagram')?.value||'',
     empresa_site:document.getElementById('cfg-site')?.value||'',
+    login_usuario:(document.getElementById('conf-login-usuario')||{}).value||'',
+    login_senha:(document.getElementById('conf-login-senha')||{}).value||'',
+    login_op_usuario:(document.getElementById('conf-op-usuario')||{}).value||'',
+    login_op_senha:(document.getElementById('conf-op-senha')||{}).value||'',
   };
   const res=await fetch(`${API}/configuracoes`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   if (res.ok) toast('Configuracoes salvas!','success');
@@ -2686,16 +3198,563 @@ async function loadListaBackups(){
 }
 
 // Historico modal tabs
+
+function filterMateriais(){
+  const q=(document.getElementById('q-materiais')?.value||'').toLowerCase();
+  const tbody=document.getElementById('tbody-materiais');if(!tbody)return;
+  const rows=materiaisCache.filter(m=>!q||m.nome.toLowerCase().includes(q));
+  tbody.innerHTML=rows.map(m=>`<tr><td style="font-weight:500">${m.nome}</td><td><span class="badge badge-purple">${m.tipo==='unidade'?'Por unidade':'Por m2'}</span></td><td>${m.tipo==='unidade'?brl(m.preco_unidade)+'/un':brl(m.preco_m2)+'/m2'}</td><td style="color:var(--text-muted)">${m.tipo==='unidade'?brl(m.custo_material||0)+'/un':brl(m.custo_material||0)+'/m2'}</td><td>${m.margem_lucro||0}%</td><td style="display:flex;gap:6px"><button class="btn btn-sm" onclick="editarMaterialById(${m.id})">Editar</button><button class="btn btn-sm btn-danger" onclick="deletarMaterial(${m.id})">Excluir</button></td></tr>`).join('');
+}
+function toggleProdutosSelector(){
+  const el=document.getElementById('produtos-selector');if(!el)return;
+  const h=el.style.display==='none';el.style.display=h?'':'none';
+  if(h){fetch(API+'/produtos').then(r=>r.json()).then(rows=>{rows.forEach(p=>_store.produtos[p.id]=p);}).catch(()=>{});const b=document.getElementById('busca-produto-pdv');if(b)b.focus();}
+}
+async function buscarProdutosPDV(q){
+  const lista=document.getElementById('produtos-lista-pdv');if(!lista)return;
+  if(!q){lista.innerHTML='';return;}
+  const rows=await fetch(API+'/produtos?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>[]);
+  rows.forEach(p=>_store.produtos[p.id]=p);
+  lista.innerHTML=rows.slice(0,8).map(p=>`<div onclick="adicionarProdutoPDV(${p.id})" style="padding:7px 10px;border-radius:6px;cursor:pointer;margin-bottom:3px;background:var(--bg2);display:flex;justify-content:space-between" onmouseover="this.style.background='var(--purple-light)'" onmouseout="this.style.background='var(--bg2)'"><div><div style="font-size:13px;font-weight:500">${p.nome}</div><div style="font-size:11px;color:var(--text-muted)">Estoque: ${p.estoque}</div></div><div style="font-size:13px;font-weight:500;color:var(--purple)">${brl(p.preco_venda)}</div></div>`).join('')||'<div style="padding:8px;color:var(--text-muted)">Nenhum produto</div>';
+}
+function adicionarProdutoPDV(id){
+  const p=_store.produtos[id];if(!p)return;
+  if(p.estoque<=0&&!confirm('Estoque zerado. Adicionar?'))return;
+  vendaItems.push({descricao:p.nome,quantidade:1,preco_unitario:p.preco_venda,subtotal:p.preco_venda,produto_id:p.id});
+  renderVendaItems();document.getElementById('venda-tipo').value='produto';
+  const b=document.getElementById('busca-produto-pdv');if(b){b.value='';document.getElementById('produtos-lista-pdv').innerHTML='';}
+  const sel=document.getElementById('produtos-selector');if(sel)sel.style.display='none';
+  toast(p.nome+' adicionado','success');
+}
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Enter')return;
+  const modal=document.querySelector('.modal-overlay.open');if(!modal)return;
+  if(e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;
+  e.preventDefault();
+  const map={'modal-venda':salvarVenda,'modal-locacao':salvarLocacao,'modal-orcamento':salvarOrcamento,'modal-cliente':salvarCliente,'modal-produto':salvarProduto,'modal-despesa':salvarDespesa,'modal-encomenda':salvarEncomenda,'modal-servico':salvarServico,'modal-item-locacao':salvarItemLocacao,'modal-kit':salvarKit,'modal-material':salvarMaterial};
+  const fn=map[modal.id];if(fn)fn();
+});
+(function(){const el=document.getElementById('venda-pagamento');if(el)el.addEventListener('change',function(){toggleVencimentoFiado(this.value);});})();
+
 document.querySelectorAll('.modal-overlay').forEach(overlay=>{
   overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.classList.remove('open');});
 });
 
+// Funções do Fiado que estavam faltando
+function loadFiadoPage() {
+  loadFiado('');
+}
+
+function toggleVencimentoFiado(forma) {
+  const row = document.getElementById('venda-vencimento-row');
+  if (row) row.style.display = forma === 'fiado' ? '' : 'none';
+}
+
+function receberFiado(id) {
+  const forma = prompt('Forma de pagamento para quitar (dinheiro / pix / cartao_debito / cartao_credito):', 'dinheiro');
+  if(!forma) return;
+  fetch(`${API}/vendas/${id}/receber`, {
+      method: 'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({forma_pagamento: forma})
+  }).then(res => {
+      if(res.ok) { toast('Fiado recebido!', 'success'); loadFiado(''); loadDashboard(); }
+  });
+}
+
+// Margem automática que faltava no Modal de Material
+function calcularMargemAuto() {
+  const tipo = document.getElementById('mat-tipo').value;
+  const venda = parseFloat(document.getElementById(tipo==='unidade'?'mat-preco-unid':'mat-preco-m2').value) || 0;
+  const custo = parseFloat(document.getElementById(tipo==='unidade'?'mat-custo-unid':'mat-custo').value) || 0;
+  const input = document.getElementById('mat-margem');
+  if(venda > 0 && custo >= 0) input.value = (((venda - custo) / venda) * 100).toFixed(1);
+}
+
+// ─── loadFiado ────────────────────────────────────────────────────
+async function loadFiado(filtro){
+  const btnMap={'':'fiado-btn-todos','atrasado':'fiado-btn-atrasado','vencendo':'fiado-btn-vencendo'};
+  document.querySelectorAll('#page-fiado .filters-bar .btn').forEach(b=>{b.style.background='';b.style.color='';});
+  const ab=document.getElementById(btnMap[filtro]||'fiado-btn-todos');
+  if(ab){ab.style.background='var(--purple-light)';ab.style.color='var(--purple)';}
+
+  const rows=await fetch(filtro?`${API}/fiado?status=${filtro}`:`${API}/fiado`).then(r=>r.json()).catch(()=>[]);
+  const todos=filtro?await fetch(`${API}/fiado`).then(r=>r.json()).catch(()=>[]):rows;
+  const hoje=new Date().toISOString().split('T')[0];
+  const em7=new Date(Date.now()+7*86400000).toISOString().split('T')[0];
+  const atr=todos.filter(v=>v.data_vencimento&&v.data_vencimento<hoje);
+  const v7=todos.filter(v=>v.data_vencimento&&v.data_vencimento>=hoje&&v.data_vencimento<=em7);
+  const g=id=>document.getElementById(id);
+  if(g('fiado-m-total'))    g('fiado-m-total').textContent=brl(todos.reduce((s,v)=>s+v.total,0));
+  if(g('fiado-m-atrasado')) g('fiado-m-atrasado').textContent=brl(atr.reduce((s,v)=>s+v.total,0));
+  if(g('fiado-m-vencendo')) g('fiado-m-vencendo').textContent=brl(v7.reduce((s,v)=>s+v.total,0));
+  if(g('fiado-m-qtd'))      g('fiado-m-qtd').textContent=new Set(todos.map(v=>v.cliente_nome)).size;
+  const tbody=g('tbody-fiado');
+  if(!tbody) return;
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:32px">Nenhum fiado encontrado</td></tr>';return;}
+  tbody.innerHTML=rows.map(v=>{
+    const venc=v.data_vencimento||'';
+    let lbl='—',cls='badge-gray';
+    if(venc){if(venc<hoje){lbl='Vencido';cls='badge-red';}
+             else if(venc===hoje){lbl='Hoje';cls='badge-amber';}
+             else if(venc<=em7){lbl='Em breve';cls='badge-amber';}
+             else{lbl='Em dia';cls='badge-green';}}
+    return `<tr>
+      <td>#${v.id}</td><td><strong>${v.cliente_nome||'—'}</strong></td>
+      <td>${brl(v.total)}</td><td>${venc?fmtDate(venc):'—'}</td>
+      <td><span class="badge ${cls}">${lbl}</span></td>
+      <td>${fmtDate(v.criado_em)}</td>
+      <td><button class="btn btn-sm btn-primary" onclick="receberFiado(${v.id})">Receber</button>
+          <button class="btn btn-sm" onclick="editarVendaById(${v.id})" style="margin-left:4px">Editar</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── Notifications ────────────────────────────────────────────────
+function mostrarNotificacao(msg,tipo){
+  tipo=tipo||'warning';
+  let bar=document.getElementById('notif-bar');
+  if(!bar){
+    bar=document.createElement('div');
+    bar.id='notif-bar';
+    bar.style.cssText='display:none;position:fixed;top:0;left:0;right:0;z-index:9999;padding:9px 20px;font-size:13px;font-weight:500;text-align:center;cursor:pointer;color:#fff;';
+    bar.onclick=function(){this.style.display='none';};
+    document.body.prepend(bar);
+  }
+  bar.style.background=tipo==='warning'?'#e57373':tipo==='amber'?'#f0a500':'#534AB7';
+  bar.textContent=msg+'  ✕';
+  bar.style.display='block';
+  setTimeout(()=>{bar.style.display='none';},9000);
+}
+
+async function verificarAlertas(){
+  try{
+    const d=await fetch(`${API}/dashboard`).then(r=>r.json()).catch(()=>null);
+    if(!d) return;
+    const msgs=[];
+    if(d.locacoes_atrasadas>0)   msgs.push(`⚠️ ${d.locacoes_atrasadas} locação(ões) atrasada(s)`);
+    if(d.encomendas_atrasadas>0) msgs.push(`⚠️ ${d.encomendas_atrasadas} encomenda(s) atrasada(s)`);
+    if(d.fiado_atrasado_count>0) msgs.push(`💰 ${d.fiado_atrasado_count} fiado(s) vencido(s): ${brl(d.fiado_atrasado_valor)}`);
+    if(d.locacoes_vencendo>0)    msgs.push(`📦 ${d.locacoes_vencendo} locação(ões) vencem em 3 dias`);
+    if(msgs.length) mostrarNotificacao(msgs.join('  |  '),'warning');
+  }catch(e){}
+}
+
+// ─── Export Excel (CSV) ───────────────────────────────────────────
+async function exportarExcel(tipo){
+  const ini=(document.getElementById('rel-ini')||{}).value||new Date(new Date().setDate(1)).toISOString().split('T')[0];
+  const fim=(document.getElementById('rel-fim')||{}).value||new Date().toISOString().split('T')[0];
+  let rows=[],headers=[],filename='export.csv';
+  if(tipo==='vendas'){
+    rows=await fetch(`${API}/vendas?data_ini=${ini}&data_fim=${fim}`).then(r=>r.json()).catch(()=>[]);
+    headers=['ID','Cliente','Tipo','Subtotal','Desconto','Total','Pagamento','Status','Data'];
+    rows=rows.map(v=>[v.id,v.cliente_nome||'',v.tipo,v.subtotal,v.desconto,v.total,v.forma_pagamento,v.status,fmtDate(v.criado_em)]);
+    filename=`vendas_${ini}_${fim}.csv`;
+  }else if(tipo==='clientes'){
+    rows=await fetch(`${API}/clientes`).then(r=>r.json()).catch(()=>[]);
+    headers=['ID','Nome','Telefone','Email','CPF/CNPJ','Endereco'];
+    rows=rows.map(c=>[c.id,c.nome,c.telefone||'',c.email||'',c.cpf_cnpj||'',c.endereco||'']);
+    filename='clientes.csv';
+  }else if(tipo==='despesas'){
+    rows=await fetch(`${API}/despesas?data_ini=${ini}&data_fim=${fim}`).then(r=>r.json()).catch(()=>[]);
+    headers=['ID','Descricao','Categoria','Valor','Pagamento','Data'];
+    rows=rows.map(d=>[d.id,d.descricao,d.categoria,d.valor,d.forma_pagamento,d.data]);
+    filename=`despesas_${ini}_${fim}.csv`;
+  }else if(tipo==='locacoes'){
+    rows=await fetch(`${API}/locacoes`).then(r=>r.json()).catch(()=>[]);
+    headers=['ID','Cliente','Retirada','Devolucao','Total','Status'];
+    rows=rows.map(l=>[l.id,l.cliente_nome,l.data_retirada,l.data_devolucao,l.total,l.status]);
+    filename='locacoes.csv';
+  }
+  const esc=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const csv=[headers.map(esc).join(','),...rows.map(r=>r.map(esc).join(','))].join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download=filename;a.click();
+  toast('Arquivo exportado!','success');
+}
+
+// ─── DRE Anual ────────────────────────────────────────────────────
+async function loadDRE(){
+  const anoEl=document.getElementById('dre-ano');
+  const ano=anoEl?parseInt(anoEl.value):new Date().getFullYear();
+  const tabEl=document.getElementById('dre-tabela');
+  if(tabEl) tabEl.innerHTML='<div style="padding:24px;text-align:center;color:var(--text-muted)">Carregando...</div>';
+  const meses=[];
+  for(let m=1;m<=12;m++){
+    const ms=`${ano}-${String(m).padStart(2,'0')}`;
+    const dias=new Date(ano,m,0).getDate();
+    const [vendas,despesas]=await Promise.all([
+      fetch(`${API}/vendas?data_ini=${ms}-01&data_fim=${ms}-${dias}`).then(r=>r.json()).catch(()=>[]),
+      fetch(`${API}/despesas?data_ini=${ms}-01&data_fim=${ms}-${dias}`).then(r=>r.json()).catch(()=>[])
+    ]);
+    const rec=vendas.filter(v=>v.status==='pago').reduce((s,v)=>s+v.total,0);
+    const desp=despesas.reduce((s,d)=>s+d.valor,0);
+    const lbl=new Date(ano,m-1,1).toLocaleString('pt-BR',{month:'short'}).replace('.','');
+    meses.push({lbl,rec,desp,lucro:rec-desp});
+  }
+  const tR=meses.reduce((s,m)=>s+m.rec,0);
+  const tD=meses.reduce((s,m)=>s+m.desp,0);
+  if(!tabEl) return;
+  tabEl.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="background:var(--purple-light)">
+      <th style="padding:8px 12px;text-align:left">Mês</th>
+      <th style="padding:8px 12px;text-align:right;color:var(--teal)">Receita</th>
+      <th style="padding:8px 12px;text-align:right;color:var(--coral)">Despesas</th>
+      <th style="padding:8px 12px;text-align:right">Resultado</th>
+    </tr></thead>
+    <tbody>${meses.map(m=>`<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:7px 12px;font-weight:500">${m.lbl.charAt(0).toUpperCase()+m.lbl.slice(1)}</td>
+      <td style="padding:7px 12px;text-align:right;color:var(--teal)">${brl(m.rec)}</td>
+      <td style="padding:7px 12px;text-align:right;color:var(--coral)">${brl(m.desp)}</td>
+      <td style="padding:7px 12px;text-align:right;font-weight:600;color:${m.lucro>=0?'var(--teal)':'var(--coral)'}">${brl(m.lucro)}</td>
+    </tr>`).join('')}</tbody>
+    <tfoot><tr style="background:var(--bg-secondary);font-weight:700">
+      <td style="padding:10px 12px">TOTAL ${ano}</td>
+      <td style="padding:10px 12px;text-align:right;color:var(--teal)">${brl(tR)}</td>
+      <td style="padding:10px 12px;text-align:right;color:var(--coral)">${brl(tD)}</td>
+      <td style="padding:10px 12px;text-align:right;color:${tR-tD>=0?'var(--teal)':'var(--coral)'}">${brl(tR-tD)}</td>
+    </tr></tfoot>
+  </table>`;
+}
+
+// ─── Mini Agenda (dashboard) ──────────────────────────────────────
+async function loadMiniAgenda(){
+  const el=document.getElementById('mini-agenda-list');
+  if(!el) return;
+  const eventos=await fetch(`${API}/agenda/proximos`).then(r=>r.json()).catch(()=>[]);
+  if(!eventos.length){el.innerHTML='<div style="padding:8px 0;color:var(--text-muted);font-size:13px">Nenhum compromisso nos próximos 7 dias</div>';return;}
+  const ico={locacao:'📦',encomenda:'🎨',compromisso:'📋',entrega:'🚚'};
+  el.innerHTML=eventos.slice(0,5).map(e=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:18px;flex-shrink:0">${ico[e.tipo]||'📋'}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:500;color:var(--text);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.titulo}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${fmtDate(e.data_inicio)} ${e.hora_inicio||''}${e.cliente_nome?' · '+e.cliente_nome:''}</div>
+      </div>
+      <span style="background:${e.cor||'#534AB7'}22;color:${e.cor||'#534AB7'};padding:2px 8px;border-radius:10px;font-size:11px;flex-shrink:0">${e.tipo}</span>
+    </div>`).join('');
+}
+
+
+// ─── Busca Global ─────────────────────────────────────────────────
+let _gsTimer = null;
+async function onGlobalSearch(q) {
+  clearTimeout(_gsTimer);
+  const res = document.getElementById('global-search-results');
+  if (!res) return;
+  q = q.trim();
+  if (q.length < 2) { res.classList.remove('open'); res.innerHTML=''; return; }
+  res.classList.add('open');
+  res.innerHTML = '<div class="gs-empty">Buscando...</div>';
+  _gsTimer = setTimeout(async () => {
+    try {
+      const [clientes, vendas, encomendas, orcamentos] = await Promise.all([
+        fetch(`${API}/clientes?q=${encodeURIComponent(q)}`).then(r=>r.json()).catch(()=>[]),
+        fetch(`${API}/vendas`).then(r=>r.json()).catch(()=>[]),
+        fetch(`${API}/encomendas/todas`).then(r=>r.json()).catch(()=>[]),
+        fetch(`${API}/orcamentos`).then(r=>r.json()).catch(()=>[]),
+      ]);
+      const ql = q.toLowerCase();
+      const vf  = vendas.filter(v=>(v.cliente_nome||'').toLowerCase().includes(ql));
+      const ef  = encomendas.filter(e=>(e.cliente_nome||'').toLowerCase().includes(ql)||(e.descricao||'').toLowerCase().includes(ql)||(e.numero||'').toLowerCase().includes(ql));
+      const of2 = orcamentos.filter(o=>(o.cliente_nome||'').toLowerCase().includes(ql)||(o.numero||'').toLowerCase().includes(ql));
+      let html = '';
+      if (!clientes.length && !vf.length && !ef.length && !of2.length) {
+        html = '<div class="gs-empty">Nenhum resultado encontrado</div>';
+      } else {
+        if (clientes.length) html += '<div class="gs-section"><div class="gs-section-title">Clientes</div>'
+          + clientes.slice(0,4).map(c=>'<div class="gs-item" onclick="navigateTo(\'clientes\');closeGlobalSearch()">'
+          + '<span class="gs-item-icon">👤</span><div class="gs-item-main">'
+          + '<div class="gs-item-title">'+c.nome+'</div>'
+          + '<div class="gs-item-sub">'+(c.telefone||c.email||'—')+'</div>'
+          + '</div></div>').join('') + '</div>';
+        if (ef.length) html += '<div class="gs-section"><div class="gs-section-title">Encomendas</div>'
+          + ef.slice(0,4).map(e=>'<div class="gs-item" onclick="navigateTo(\'encomendas\');closeGlobalSearch()">'
+          + '<span class="gs-item-icon">🎨</span><div class="gs-item-main">'
+          + '<div class="gs-item-title">'+e.numero+' — '+e.cliente_nome+'</div>'
+          + '<div class="gs-item-sub">'+e.descricao.slice(0,50)+' · '+e.status+'</div>'
+          + '</div></div>').join('') + '</div>';
+        if (vf.length) html += '<div class="gs-section"><div class="gs-section-title">Vendas</div>'
+          + vf.slice(0,4).map(v=>'<div class="gs-item" onclick="navigateTo(\'pdv\');closeGlobalSearch()">'
+          + '<span class="gs-item-icon">💰</span><div class="gs-item-main">'
+          + '<div class="gs-item-title">'+(v.cliente_nome||'—')+'</div>'
+          + '<div class="gs-item-sub">'+brl(v.total)+' · '+fmtDate(v.criado_em)+'</div>'
+          + '</div></div>').join('') + '</div>';
+        if (of2.length) html += '<div class="gs-section"><div class="gs-section-title">Orcamentos</div>'
+          + of2.slice(0,3).map(o=>'<div class="gs-item" onclick="navigateTo(\'orcamentos\');closeGlobalSearch()">'
+          + '<span class="gs-item-icon">📋</span><div class="gs-item-main">'
+          + '<div class="gs-item-title">'+o.numero+' — '+(o.cliente_nome||'—')+'</div>'
+          + '<div class="gs-item-sub">'+brl(o.total)+' · '+o.status+'</div>'
+          + '</div></div>').join('') + '</div>';
+      }
+      res.innerHTML = html;
+    } catch(err) { res.innerHTML = '<div class="gs-empty">Erro na busca</div>'; }
+  }, 300);
+}
+function closeGlobalSearch() {
+  const inp = document.getElementById('global-search-input');
+  const res = document.getElementById('global-search-results');
+  if (inp) inp.value = '';
+  if (res) { res.classList.remove('open'); res.innerHTML = ''; }
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest || !e.target.closest('.global-search-wrap')) closeGlobalSearch();
+});
+
+// ─── Sinal/Entrada nas Encomendas ─────────────────────────────────
+function calcSaldoEncomenda() {
+  const totalEl = document.getElementById('enc-total');
+  const sinalEl = document.getElementById('enc-sinal');
+  const saldo   = document.getElementById('enc-saldo-display');
+  const total   = parseFloat(totalEl ? totalEl.value : 0) || 0;
+  const sinal   = parseFloat(sinalEl ? sinalEl.value : 0) || 0;
+  if (saldo) {
+    const restante = total - sinal;
+    saldo.textContent = 'Saldo restante: ' + brl(restante < 0 ? 0 : restante);
+    saldo.style.color = restante <= 0 ? 'var(--teal)' : 'var(--amber)';
+  }
+}
+
+// ─── Imprimir Recibo ──────────────────────────────────────────────
+async function imprimirRecibo(vendaId) {
+  const venda  = await fetch(`${API}/vendas/${vendaId}`).then(r=>r.json()).catch(()=>null);
+  const itens  = await fetch(`${API}/vendas/${vendaId}/itens`).then(r=>r.json()).catch(()=>[]);
+  const config = await fetch(`${API}/configuracoes`).then(r=>r.json()).catch(()=>({}));
+  if (!venda) { toast('Erro ao carregar venda','error'); return; }
+  const win = window.open('','_blank','width=420,height=660');
+  if (!win) { toast('Permita pop-ups para imprimir','error'); return; }
+  const empresa  = config.empresa_nome || 'DripArt';
+  const tel      = config.empresa_telefone || '';
+  const wpp      = config.empresa_whatsapp || '';
+  const formaPag = ({dinheiro:'Dinheiro',pix:'PIX',cartao_debito:'Cartao Debito',
+                     cartao_credito:'Cartao Credito',fiado:'Fiado'})[venda.forma_pagamento]
+                   || venda.forma_pagamento;
+  const itensHtml = itens.map(i =>
+    `<tr><td>${i.descricao}</td><td style="text-align:center">${i.quantidade}</td>
+     <td style="text-align:right">${brl(i.subtotal)}</td></tr>`).join('');
+  win.document.write(
+    '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recibo #'+venda.id+'</title>'
+    +'<style>body{font-family:Arial,sans-serif;font-size:13px;margin:20px;color:#222}'
+    +'h2{text-align:center;margin:0 0 2px;font-size:18px}'
+    +'.sub{text-align:center;color:#666;font-size:11px;margin-bottom:12px}'
+    +'hr{border:none;border-top:1px dashed #aaa;margin:10px 0}'
+    +'table{width:100%;border-collapse:collapse}'
+    +'th{font-size:11px;color:#666;border-bottom:1px solid #ddd;padding:4px;text-align:left}'
+    +'td{padding:5px 2px;border-bottom:1px solid #f0f0f0}'
+    +'.footer{text-align:center;font-size:11px;color:#888;margin-top:14px}'
+    +'@media print{body{margin:6px}}</style></head><body>'
+    +'<h2>'+empresa+'</h2>'
+    +'<div class="sub">'+(tel?tel+'<br>':'')+(wpp?'WhatsApp: '+wpp:'')+'</div><hr>'
+    +'<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">'
+    +'<span><b>Recibo #'+venda.id+'</b></span><span>'+fmtDate(venda.criado_em)+'</span></div>'
+    +'<div style="font-size:12px;margin-bottom:8px"><b>Cliente:</b> '+(venda.cliente_nome||'—')+'</div><hr>'
+    +'<table><thead><tr><th>Item</th><th style="text-align:center">Qtd</th>'
+    +'<th style="text-align:right">Valor</th></tr></thead><tbody>'+itensHtml+'</tbody></table><hr>'
+    +(venda.desconto>0?'<div style="text-align:right;font-size:12px;color:#888">Subtotal: '+brl(venda.subtotal)+'<br>Desconto: -'+brl(venda.desconto)+'</div>':'')
+    +'<div style="text-align:right;font-size:16px;font-weight:bold;margin:6px 0">Total: '+brl(venda.total)+'</div>'
+    +'<div style="font-size:12px;color:#555;text-align:right">Pagamento: '+formaPag+'</div><hr>'
+    +'<div class="footer">Obrigado pela preferencia!<br>'+empresa+'</div>'
+    +'<scr'+'ipt>window.onload=function(){window.print();}<\/scr'+'ipt>'
+    +'</body></html>');
+  win.document.close();
+}
+
+// ─── Disponibilidade por Período ──────────────────────────────────
+async function verificarDisponibilidade() {
+  const ini = (document.getElementById('disp-ini')||{}).value||'';
+  const fim = (document.getElementById('disp-fim')||{}).value||'';
+  const res = document.getElementById('disp-resultado');
+  if (!ini||!fim||!res) return;
+  if (ini>fim) { res.innerHTML='<span style="color:var(--coral)">Data inicial maior que final</span>'; return; }
+  res.innerHTML='Verificando...';
+  const itens = await fetch(`${API}/itens-locacao`).then(r=>r.json()).catch(()=>[]);
+  if (!itens.length) { res.innerHTML='Nenhum item cadastrado'; return; }
+  const checks = await Promise.all(itens.map(item =>
+    fetch(`${API}/itens-locacao/${item.id}/disponibilidade?data_ini=${ini}&data_fim=${fim}`)
+      .then(r=>r.json()).catch(()=>null)
+  ));
+  const rows = checks.filter(Boolean);
+  if (!rows.length) { res.innerHTML='Nenhum resultado'; return; }
+  res.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:8px">'
+    +'<thead><tr style="background:var(--purple-light)">'
+    +'<th style="padding:7px 10px;text-align:left">Item</th>'
+    +'<th style="padding:7px 10px;text-align:center">Total</th>'
+    +'<th style="padding:7px 10px;text-align:center">Em uso</th>'
+    +'<th style="padding:7px 10px;text-align:center">Disponivel</th>'
+    +'</tr></thead><tbody>'
+    + rows.map(r=>'<tr style="border-bottom:1px solid var(--border)">'
+      +'<td style="padding:7px 10px;font-weight:500">'+r.nome+'</td>'
+      +'<td style="padding:7px 10px;text-align:center">'+r.total+'</td>'
+      +'<td style="padding:7px 10px;text-align:center;color:'+(r.em_uso>0?'var(--amber)':'var(--text-muted)')+'">'+r.em_uso+'</td>'
+      +'<td style="padding:7px 10px;text-align:center"><span style="font-weight:700;color:'+(r.disponivel>0?'var(--teal)':'var(--coral)')+'">'+r.disponivel+'</span></td>'
+      +'</tr>').join('')
+    +'</tbody></table>';
+}
+
+
+// ─── WhatsApp helpers ─────────────────────────────────────────────
+function abrirWhatsApp(telefone, mensagem) {
+  if (!telefone) { toast('Cliente sem telefone cadastrado', 'error'); return; }
+  const num = '55' + telefone.replace(/\D/g, '');
+  const url = mensagem
+    ? 'https://wa.me/' + num + '?text=' + encodeURIComponent(mensagem)
+    : 'https://wa.me/' + num;
+  window.open(url, '_blank');
+}
+
+function wppEncomenda(encId) {
+  const enc = _store.encomendas[encId];
+  if (!enc) { toast('Encomenda não encontrada', 'error'); return; }
+  const msg = 'Olá ' + enc.cliente_nome + '! 😊\n\n'
+    + 'Seu pedido *' + enc.numero + '* está com status: *' + enc.status.toUpperCase() + '*\n'
+    + (enc.descricao ? 'Pedido: ' + enc.descricao.slice(0,80) + '\n' : '')
+    + (enc.data_entrega ? 'Entrega prevista: ' + fmtDate(enc.data_entrega) + '\n' : '')
+    + (enc.total > 0 ? 'Valor: ' + brl(enc.total) : '')
+    + '\n\n_DripArt_';
+  // Try to get phone from clientes store by name
+  const cli = Object.values(_store.clientes).find(c => c.nome === enc.cliente_nome);
+  abrirWhatsApp(cli ? cli.telefone : '', msg);
+}
+
+function wppCliente(cliId) {
+  const cli = _store.clientes[cliId];
+  if (!cli) return;
+  abrirWhatsApp(cli.telefone, '');
+}
+
+
+// ─── Login / Autenticação ─────────────────────────────────────────
+const DRIPART_SESSION_KEY = 'dripart_logged';
+let _currentUser = null;
+
+function checkLogin() {
+  const saved = sessionStorage.getItem(DRIPART_SESSION_KEY);
+  if (saved) {
+    try {
+      _currentUser = JSON.parse(saved);
+      applyUserProfile();
+      return true;
+    } catch(e) {}
+  }
+  mostrarTelaLogin();
+  return false;
+}
+
+function mostrarTelaLogin() {
+  let overlay = document.getElementById('login-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'login-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:var(--purple);z-index:99999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+      <div style="background:#fff;border-radius:16px;padding:40px 36px;width:340px;box-shadow:0 20px 60px rgba(0,0,0,0.25);text-align:center">
+        <div style="font-size:32px;margin-bottom:8px">🎨</div>
+        <h2 style="margin:0 0 4px;font-size:22px;color:var(--purple)">DripArt</h2>
+        <p style="color:var(--text-muted);font-size:13px;margin:0 0 24px">Sistema de Gestão</p>
+        <div style="text-align:left;margin-bottom:14px">
+          <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px">USUÁRIO</label>
+          <input type="text" id="login-user" placeholder="seu usuário"
+            style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;outline:none"
+            onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'"
+            onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
+        </div>
+        <div style="text-align:left;margin-bottom:20px">
+          <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px">SENHA</label>
+          <input type="password" id="login-pass" placeholder="••••••••"
+            style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;outline:none"
+            onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'"
+            onkeydown="if(event.key==='Enter')fazerLogin()">
+        </div>
+        <button onclick="fazerLogin()"
+          style="width:100%;padding:12px;background:var(--purple);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer">
+          Entrar
+        </button>
+        <div id="login-erro" style="color:var(--coral);font-size:12px;margin-top:10px;display:none">
+          Usuário ou senha incorretos
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = 'flex';
+  setTimeout(() => { const u = document.getElementById('login-user'); if(u) u.focus(); }, 100);
+}
+
+async function fazerLogin() {
+  const user = (document.getElementById('login-user')?.value||'').trim();
+  const pass = document.getElementById('login-pass')?.value||'';
+  const erro = document.getElementById('login-erro');
+  if (!user || !pass) { if(erro) erro.style.display='block'; return; }
+
+  // Check against configured users
+  const config = await fetch(`${API}/configuracoes`).then(r=>r.json()).catch(()=>({}));
+
+  // Default admin if no users configured
+  const adminUser = config.login_usuario || 'admin';
+  const adminPass = config.login_senha   || 'dripart';
+  const opUser    = config.login_op_usuario || '';
+  const opPass    = config.login_op_senha   || '';
+
+  let perfil = null;
+  if (user === adminUser && pass === adminPass) perfil = 'admin';
+  else if (opUser && user === opUser && pass === opPass) perfil = 'operador';
+
+  if (!perfil) {
+    if(erro) erro.style.display = 'block';
+    const passEl = document.getElementById('login-pass');
+    if(passEl) { passEl.value=''; passEl.focus(); }
+    return;
+  }
+
+  _currentUser = { usuario: user, perfil };
+  sessionStorage.setItem(DRIPART_SESSION_KEY, JSON.stringify(_currentUser));
+  const overlay = document.getElementById('login-overlay');
+  if (overlay) overlay.style.display = 'none';
+  applyUserProfile();
+  loadDashboard();
+  toast('Bem-vindo, ' + user + '! (' + perfil + ')', 'success');
+}
+
+function fazerLogout() {
+  sessionStorage.removeItem(DRIPART_SESSION_KEY);
+  _currentUser = null;
+  // Clear any sensitive data
+  mostrarTelaLogin();
+}
+
+function applyUserProfile() {
+  if (!_currentUser) return;
+  // Show user indicator in sidebar footer
+  const footer = document.querySelector('.sidebar-footer');
+  if (footer) {
+    const userBadge = footer.querySelector('#user-badge') || document.createElement('div');
+    userBadge.id = 'user-badge';
+    userBadge.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-top:6px';
+    userBadge.innerHTML = '<span style="font-size:11px;color:var(--purple);font-weight:600">👤 '+_currentUser.usuario+' ('+_currentUser.perfil+')</span>'
+      + '<button onclick="fazerLogout()" style="background:none;border:none;font-size:10px;color:var(--text-muted);cursor:pointer;padding:0">Sair</button>';
+    if (!footer.querySelector('#user-badge')) footer.appendChild(userBadge);
+    else footer.replaceChild(userBadge, footer.querySelector('#user-badge'));
+  }
+  // Hide restricted items for operador
+  if (_currentUser.perfil === 'operador') {
+    ['configuracoes','relatorios','fluxo'].forEach(pg => {
+      const nav = document.querySelector('[data-page="'+pg+'"]');
+      if (nav) nav.style.display = 'none';
+    });
+  }
+}
+
 // Init
-const hoje=new Date().toISOString().split('T')[0];
-const iniMes=new Date(new Date().setDate(1)).toISOString().split('T')[0];
-document.getElementById('pdv-data-ini').value=iniMes;
-document.getElementById('pdv-data-fim').value=hoje;
-loadDashboard();
+(function() {
+  if (!checkLogin()) return;
+  const hoje=new Date().toISOString().split('T')[0];
+  const iniMes=new Date(new Date().setDate(1)).toISOString().split('T')[0];
+  const dIni=document.getElementById('pdv-data-ini');
+  const dFim=document.getElementById('pdv-data-fim');
+  if(dIni) dIni.value=iniMes;
+  if(dFim) dFim.value=hoje;
+  loadDashboard();
+  setTimeout(verificarAlertas,2500);
+})();
 </script>
 </body>
 </html>
+    
