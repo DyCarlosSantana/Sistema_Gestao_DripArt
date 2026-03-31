@@ -1,59 +1,82 @@
-# ── Banco de Dados (dados sensíveis) ─────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════
+#  .gitignore — DripArt Sistema de Gestão
+#  Protege dados sensíveis e arquivos gerados automaticamente
+# ═══════════════════════════════════════════════════════════
+
+# ─── Banco de Dados (NUNCA versionar dados reais) ───────────
 *.db
 *.db-journal
 *.db-wal
 *.db-shm
+*.sqlite
+*.sqlite3
 
-# ── Python ────────────────────────────────────────────────────────────────────
+# ─── Backups locais ─────────────────────────────────────────
+backups/
+
+# ─── PDFs Gerados pelo Sistema ──────────────────────────────
+docs/
+
+# ─── Python — bytecode e caches ─────────────────────────────
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+*.pyw
 .Python
 *.egg
 *.egg-info/
-dist/
 build/
 .eggs/
-pip-wheel-metadata/
+
+# ─── Ambientes virtuais Python ──────────────────────────────
 venv/
 .venv/
 env/
 ENV/
 
-# ── PDFs Gerados ──────────────────────────────────────────────────────────────
-docs/*.pdf
+# ─── Variáveis de ambiente ──────────────────────────────────
+.env
+.env.*
+!.env.example
 
-# ── Backups ───────────────────────────────────────────────────────────────────
-backups/
-
-# ── Node / Vite ───────────────────────────────────────────────────────────────
+# ─── Node / Vite / npm ──────────────────────────────────────
 node_modules/
 decor-venue-flow-main/node_modules/
 decor-venue-flow-main/dist/
 decor-venue-flow-main/.vite/
 decor-venue-flow-main/vite.config.ts.timestamp*
-
-# ── Lock files (manter apenas um) ────────────────────────────────────────────
 decor-venue-flow-main/bun.lock
 decor-venue-flow-main/bun.lockb
 
-# ── Sistema Operacional ───────────────────────────────────────────────────────
+# ─── Arquivos de build legados (raiz) ───────────────────────
+index.html
+
+# ─── Sistema Operacional ────────────────────────────────────
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 desktop.ini
 
-# ── IDEs ──────────────────────────────────────────────────────────────────────
+# ─── IDEs e Editores ────────────────────────────────────────
 .vscode/
 .idea/
 *.suo
 *.user
+*.swp
+*.swo
+*~
 
-# ── Logs ──────────────────────────────────────────────────────────────────────
+# ─── Logs ───────────────────────────────────────────────────
 *.log
 logs/
 
-# ── Variáveis de ambiente ─────────────────────────────────────────────────────
-.env
-.env.*
-!.env.example
+# ─── Testes e Coverage ──────────────────────────────────────
+coverage/
+htmlcov/
+.coverage
+.pytest_cache/
