@@ -89,41 +89,7 @@ O script vai automaticamente:
 
 ---
 
-## 🛠️ Instalação Manual para Desenvolvimento
-
-### 1. Clone o repositório
-
-```bash
-git clone https://github.com/DyCarlosSantana/Projeto_Gestao_DripArt.git
-cd Projeto_Gestao_DripArt
-```
-
-### 2. Instale as dependências Python
-
-```bash
-pip install flask reportlab pillow werkzeug
-```
-
-### 3. Compile o Frontend (opcional — já há uma build em `/dist`)
-
-```bash
-cd decor-venue-flow-main
-npm install
-npm run build
-cd ..
-```
-
-### 4. Inicie o servidor
-
-```bash
-python app.py
-```
-
-Acesse: **http://localhost:5000**
-
----
-
-## 🗂️ Estrutura do Projeto
+## Estrutura do Projeto
 
 ```
 Projeto_Gestao_DripArt/
@@ -173,12 +139,10 @@ Se a chave PIX (WhatsApp/CNPJ) estiver cadastrada em **Configurações**, todos 
 
 ## Segurança
 
-- Senhas armazenadas com **PBKDF2-SHA256** via `werkzeug.security`
-- Dois níveis de acesso: **Admin** (acesso total) e **Operador** (sem Configurações)
-- Rotas do frontend protegidas por **AuthContext** com `ProtectedRoute`
-- Rota `/configuracoes` exige nível **Admin** explicitamente
-
-> **Nota**: Implementações pendentes
+- Senhas armazenadas com **PBKDF2-SHA256** via `werkzeug.security`  
+- Dois níveis de acesso: **Admin** (acesso total) e **Operador** (sem Configurações)  
+- Rotas do frontend protegidas por **AuthContext** com `ProtectedRoute`  
+- Rota `/configuracoes` exige nível **Admin** explicitamente  
 
 > **Nota:** Implementações ainda são necessarias.
 ---
@@ -254,6 +218,6 @@ Este projeto está sob a licença **MIT**. Veja o arquivo [LICENSE](LICENSE) par
 
 <div align="center">
 
-Desenvolvido com 💜 para a **DripArt Impressão e Decoração**
+Idealizado e desenvolvido com 💜 para a **DripArt Impressão e Decoração**
 
 </div>
