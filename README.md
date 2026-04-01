@@ -1,6 +1,6 @@
 <div align="center">
 
-# 💧 DripArt — Sistema de Gestão
+# DripArt — Sistema de Gestão
 
 **Sistema de gestão completo para empresas de impressão gráfica, decoração e locação de itens.**  
 Backend em Flask · Frontend em React + Vite · Banco de dados SQLite · PDFs com QR Code PIX
@@ -16,7 +16,7 @@ Backend em Flask · Frontend em React + Vite · Banco de dados SQLite · PDFs co
 
 ---
 
-## 📋 Sobre o Projeto
+## Sobre o Projeto
 
 O **DripArt** é um sistema POS (Point of Sale) e ERP leve desenvolvido especificamente para o fluxo de trabalho de empresas de **impressão gráfica** e **locação de itens decorativos**. Ele centraliza em uma única interface:
 
@@ -29,7 +29,7 @@ O **DripArt** é um sistema POS (Point of Sale) e ERP leve desenvolvido especifi
 
 ---
 
-## ✨ Funcionalidades
+## Funcionalidades
 
 | Módulo | Descrição |
 |---|---|
@@ -51,33 +51,23 @@ O **DripArt** é um sistema POS (Point of Sale) e ERP leve desenvolvido especifi
 
 ---
 
-## 🖼️ Interface
+## Interface
 
-O sistema possui um design escuro e moderno com paleta roxa/rosa, construído com **Tailwind CSS** e componentes **shadcn/ui**.
+O sistema possui um design escuro e moderno com paleta rosa, construído com **Tailwind CSS** e componentes **shadcn/ui**.
 
-```
-┌─────────────────────────────────────────────────────┐
-│  💧 DripArt  │  Dashboard  │  [Usuário]  [Sair]     │
-├──────────────┼─────────────────────────────────────  │
-│  🏠 Dashboard │                                      │
-│  🛒 PDV      │   Resumo Financeiro do Mês            │
-│  📋 Orçamen. │   Receita: R$ 8.450  │  Lucro: ...   │
-│  📦 Locações │                                      │
-│  🎨 Pedidos  │   [Gráfico de Evolução Mensal]        │
-│  ...         │                                      │
-└──────────────┴─────────────────────────────────────  ┘
-```
+<img width="1919" height="977" alt="image" src="https://github.com/user-attachments/assets/4bef7f5a-048d-493c-90f5-a089c5666397" />
+
 
 ---
 
-## 🚀 Instalação e Execução
+## Instalação e Execução
 
 ### Pré-requisitos
 
 - [Python 3.10+](https://www.python.org/downloads/) *(marque "Add to PATH" durante a instalação)*
 - [Node.js 18+](https://nodejs.org/) *(necessário apenas para recompilar o frontend)*
 
-### ▶️ Método Rápido (Windows)
+### Método Rápido (Windows)
 
 **Duplo clique em `INICIAR_DRIPART.bat`**
 
@@ -87,52 +77,18 @@ O script vai automaticamente:
 3. Inicializar o banco de dados SQLite
 4. Abrir o sistema no navegador em `http://localhost:5000`
 
-### 🔑 Acesso Inicial
+### Acesso Inicial
 
 | Campo | Valor |
 |---|---|
 | **E-mail** | `admin@dripart.com` |
 | **Senha** | `123456` |
 
-> ⚠️ **Importante:** Altere a senha do administrador imediatamente após o primeiro acesso em **Configurações → Usuários e Segurança**.
+> **Importante:** Altere a senha do administrador imediatamente após o primeiro acesso em **Configurações → Usuários e Segurança**.
 
 ---
 
-## 🛠️ Instalação Manual para Desenvolvimento
-
-### 1. Clone o repositório
-
-```bash
-git clone https://github.com/DyCarlosSantana/Projeto_Gestao_DripArt.git
-cd Projeto_Gestao_DripArt
-```
-
-### 2. Instale as dependências Python
-
-```bash
-pip install flask reportlab pillow werkzeug
-```
-
-### 3. Compile o Frontend (opcional — já há uma build em `/dist`)
-
-```bash
-cd decor-venue-flow-main
-npm install
-npm run build
-cd ..
-```
-
-### 4. Inicie o servidor
-
-```bash
-python app.py
-```
-
-Acesse: **http://localhost:5000**
-
----
-
-## 🗂️ Estrutura do Projeto
+## Estrutura do Projeto
 
 ```
 Projeto_Gestao_DripArt/
@@ -160,7 +116,7 @@ Projeto_Gestao_DripArt/
 
 ---
 
-## 🧾 PDFs e QR Code PIX
+## PDFs e QR Code PIX
 
 O sistema gera documentos PDF profissionais para:
 
@@ -180,16 +136,17 @@ Se a chave PIX (WhatsApp/CNPJ) estiver cadastrada em **Configurações**, todos 
 
 ---
 
-## 🔐 Segurança
+## Segurança
 
 - Senhas armazenadas com **PBKDF2-SHA256** via `werkzeug.security`  
 - Dois níveis de acesso: **Admin** (acesso total) e **Operador** (sem Configurações)  
 - Rotas do frontend protegidas por **AuthContext** com `ProtectedRoute`  
 - Rota `/configuracoes` exige nível **Admin** explicitamente  
 
+> **Nota:** Implementações ainda são necessarias.
 ---
 
-## ⚙️ Stack Tecnológica
+## Stack Tecnológica
 
 ### Backend
 | Tecnologia | Uso |
@@ -214,7 +171,7 @@ Se a chave PIX (WhatsApp/CNPJ) estiver cadastrada em **Configurações**, todos 
 
 ---
 
-## 📡 API REST — Endpoints Principais
+## API REST — Endpoints Principais
 
 | Método | Rota | Descrição |
 |---|---|---|
@@ -240,7 +197,7 @@ Se a chave PIX (WhatsApp/CNPJ) estiver cadastrada em **Configurações**, todos 
 
 ---
 
-## 🤝 Contribuição
+## Contribuição
 
 1. Fork o projeto
 2. Crie sua branch: `git checkout -b feature/minha-funcionalidade`
@@ -250,7 +207,7 @@ Se a chave PIX (WhatsApp/CNPJ) estiver cadastrada em **Configurações**, todos 
 
 ---
 
-## 📝 Licença
+## Licença
 
 Este projeto está sob a licença **MIT**. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
@@ -258,6 +215,6 @@ Este projeto está sob a licença **MIT**. Veja o arquivo [LICENSE](LICENSE) par
 
 <div align="center">
 
-Desenvolvido com 💜 para a **DripArt Impressão e Decoração**
+Idealizado e desenvolvido com 💜 para a **DripArt Impressão e Decoração**
 
 </div>
