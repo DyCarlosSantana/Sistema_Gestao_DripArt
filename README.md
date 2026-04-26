@@ -2,111 +2,78 @@
 
 # Dycore — Modern Management SaaS
 
-**Plataforma de gestão integrada para empresas de decoração, brindes e locação.**
-Backend em Flask · Frontend em React + Vite · Banco de Dados PostgreSQL (Neon.tech)
+**A solução definitiva para gestão de empresas de decoração, eventos e produtos personalizados.**
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)](https://python.org)
-[![Flask](https://img.shields.io/badge/Flask-3.x-black?logo=flask)](https://flask.palletsprojects.com)
-[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://reactjs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)](https://typescriptlang.org)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql)](https://www.postgresql.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[Visão Geral](#-visão-geral) • [Recursos](#-principais-recursos) • [Tecnologia](#-stack-tecnológica) • [Interface](#-experiência-do-usuário)
+
+---
+
+![Banner Dycore](image/README/1776399329653.png)
 
 </div>
 
----
+## ✨ Visão Geral
 
-## Visão Geral
+O **Dycore** é uma plataforma SaaS (Software as a Service) de alta performance, desenhada para centralizar e otimizar todos os processos operacionais de negócios modernos. Do primeiro contato no PDV à entrega final da encomenda, o Dycore oferece uma experiência fluida, elegante e extremamente ágil.
 
-O **Dycore** é um ecossistema SaaS desenvolvido para modernizar o fluxo de trabalho de empresas que lidam com vendas, locações, produção de produtos personalizados e impressões. Com uma interface **compacta e intuitiva**, ele elimina o ruído visual e foca no que importa: a agilidade operacional.
-
-### Interface Moderna
-
-#### Tela de Login
-
-![1776399320037](image/README/1776399320037.png)
-
-
-#### Dashboard Integrado
-
-![1776399329653](image/README/1776399329653.png)
-
-*Sidebar ultra-compacto com submenus flyout e botões de acesso rápido.*
+Originalmente concebido para atender às necessidades específicas do setor de decoração e eventos, o sistema evoluiu para uma estrutura robusta capaz de gerenciar múltiplos fluxos de trabalho simultâneos.
 
 ---
 
-## Principais Módulos
+## 💎 Principais Recursos
 
-| Módulo                          | Descrição                                                                     |
-| :------------------------------- | :------------------------------------------------------------------------------ |
-| **📊 Dashboard**           | Métricas em tempo real, evolução de faturamento e**ações rápidas**. |
-| **🛒 Vendas & PDV**        | Caixa rápido com múltiplos pagamentos e geração automática de PDFs.        |
-| **📦 Locação**           | Controle de contratos de locação e gestão de itens disponíveis por data.    |
-| **📅 Agenda & Encomendas** | Calendário visual mensal integrado a prazos de encomendas e OS.                |
-| **💰 Financeiro**          | Fluxo de caixa detalhado, gestão de despesas e controle de**Fiado**.     |
-| **📋 Orçamentos**         | Geração de propostas profissionais com validade e QR Code PIX.                |
-| **👥 CRM & Cadastros**     | Gestão de Clientes e Produtos com visualização moderna em**Cards**.    |
-| **⚙️ Configurações**   | Controle total de usuários (Cargos), Módulos e personalização da Logo.      |
+### 📊 Inteligência de Negócio
+
+- **Dashboard Dinâmico:** Visualize métricas de faturamento, pedidos pendentes e evolução mensal em tempo real.
+- **Gestão de Fiado:** Controle total sobre vendas a prazo com lembretes e vencimentos.
+
+### 🛒 Operações de Vendas (PDV)
+
+- **Check-out Ultra-rápido:** Interface de ponto de venda otimizada para agilidade.
+- **Múltiplas Formas de Pagamento:** Suporte a PIX, Cartões, Dinheiro e pagamentos parciais (Sinal).
+
+### 📦 Locações e Inventário
+
+- **Controle de Disponibilidade:** Gestão rigorosa de itens de locação por datas e quantidades.
+- **Contratos Automáticos:** Geração de documentos PDF profissionais em segundos.
+
+### 📅 Produção e Agenda
+
+- **Calendário Visual:** Acompanhe prazos de entrega e compromissos em uma interface de calendário moderna.
+- **Fluxo de Encomendas:** Gestão de status de produção (Pedido, Produção, Entregue).
+
+---
+
+## 🎨 Experiência do Usuário
+
+A interface do Dycore foi projetada seguindo os princípios de **"Design Minimalista e Sólido"**:
+
+- **Sidebar Compacto:** Navegação que não rouba espaço de tela.
+- **Micro-interações:** Feedback visual imediato para cada ação do usuário.
+- **Modo SaaS:** Preparado para múltiplos usuários com diferentes níveis de permissão.
 
 ---
 
 ## 🛠️ Stack Tecnológica
 
-- **Frontend:** React 18, Vite, TypeScript, Tailwind CSS, Lucide icons, Framer Motion.
-- **Backend:** Flask (Python), ReportLab (PDFs), Werkzeug (Segurança).
-- **Banco de Dados:** **PostgreSQL** hospedado na Neon.tech (escalabilidade e nuvem).
-- **Segurança:** Autenticação via JWT com níveis de acesso (Admin, Gerente, Operador).
+O Dycore utiliza o estado da arte em tecnologias web para garantir segurança e velocidade:
+
+- **Frontend:** React 18, TypeScript, Tailwind CSS e Framer Motion.
+- **Backend:** Python com Flask, processamento assíncrono e segurança via JWT.
+- **Banco de Dados:** PostgreSQL (hospedado na nuvem via Neon.tech).
+- **Relatórios:** Motor dedicado ReportLab para documentos PDF de alta fidelidade.
 
 ---
 
-## 📥 Instalação e Uso Automático
+## 🛠️ Configuração Técnica
 
-### Pré-requisitos
-
-1. **Python 3.10+** (Instalado e no PATH).
-2. Conexão com a internet (para o banco de dados Neon).
-
-### Como Iniciar (Windows)
-
-Basta dar um duplo clique no arquivo:
- **`INICIAR_DYCORE.bat`**
-
-O script realizará o setup completo e abrirá o sistema em seu navegador padrão em `http://localhost:5000`.
-
-### Acesso Padrão
-
-- **E-mail:** `admin@dripart.com`
-- **Senha:** `123456`
-
----
-
-## 📂 Estrutura de Diretórios
-
-```bash
-Projeto_Sistema_Gestao/
-├── app.py                      # Core API Flask (Routes, Auth, Logic)
-├── INICIAR_DYCORE.bat          # Script de inicialização automática
-├── decor-venue-flow-main/      # Frontend
-│   ├── src/
-│   │   ├── pages/              # Telas (Dashboard, Agenda, PDV...)
-│   │   ├── components/         # Sidebar flutuante, Layouts, UI
-│   │   └── lib/                # api.ts, formats.ts, navigation.ts
-│   └── dist/                   # Build otimizado para produção
-└── docs/                       # Armazenamento temporário de PDFs gerados
-```
-
----
-
-## 🔒 Segurança e Permissões
-
-- **Admin:** Controle absoluto de configurações, usuários e faturamento total.
-- **Gerente:** Acesso a financeiro e relatórios, mas sem acesso a configurações globais.
-- **Operador:** Acesso restrito a vendas, agenda e cadastros, sem visualização de lucros totais.
+Se você é um desenvolvedor ou o administrador deste projeto, consulte o arquivo [**DEVELOPER.md**](./DEVELOPER.md) para instruções detalhadas de instalação, ambiente e manutenção.
 
 ---
 
 <div align="center">
 
-Idealizado e desenvolvido com muito carinho para a empresa Drip Art para máxima performance e elegância 💜
+**Dycore — Elevando a gestão ao próximo nível.**
+Idealizado por Edy Carlos Santana
 
 </div>
