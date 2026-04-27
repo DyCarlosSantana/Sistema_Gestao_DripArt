@@ -26,8 +26,8 @@ O **Dycore** é um ecossistema SaaS completo, projetado para centralizar e otimi
 
 <div align="center">
 
-| Login | Dashboard |
-|:---:|:---:|
+|                     Login                     |                 Dashboard                 |
+| :--------------------------------------------: | :----------------------------------------: |
 | ![Tela de Login](image/README/1776399320037.png) | ![Dashboard](image/README/1776399329653.png) |
 
 </div>
@@ -36,16 +36,16 @@ O **Dycore** é um ecossistema SaaS completo, projetado para centralizar e otimi
 
 ## 💎 Módulos do Sistema
 
-| Módulo | Descrição |
-| :--- | :--- |
-| **📊 Dashboard** | Métricas em tempo real, gráficos de faturamento e atalhos rápidos para as operações mais utilizadas. |
+| Módulo                           | Descrição                                                                                                                  |
+| :-------------------------------- | :--------------------------------------------------------------------------------------------------------------------------- |
+| **📊 Dashboard**            | Métricas em tempo real, gráficos de faturamento e atalhos rápidos para as operações mais utilizadas.                    |
 | **🛒 PDV (Ponto de Venda)** | Check-out ágil com suporte a múltiplas formas de pagamento, pagamentos parciais e geração automática de recibos em PDF. |
-| **📦 Locações** | Controle completo de contratos de locação, disponibilidade de itens por data e kits personalizados. |
-| **📅 Agenda & Encomendas** | Calendário visual integrado ao fluxo de produção, com rastreamento de status (Pedido → Produção → Entregue). |
-| **💰 Financeiro** | Fluxo de caixa detalhado, gestão de despesas por categoria e controle rigoroso de vendas a prazo (Fiado). |
-| **📋 Orçamentos** | Geração de propostas profissionais com validade configurável e emissão de PDF com QR Code PIX. |
-| **👥 Clientes & Produtos** | Cadastro completo com visualização em cards, busca inteligente e controle de estoque. |
-| **⚙️ Configurações** | Gestão de usuários com sistema de Cargos e Permissões, personalização de logo e ativação de módulos. |
+| **📦 Locações**           | Controle completo de contratos de locação, disponibilidade de itens por data e kits personalizados.                        |
+| **📅 Agenda & Encomendas**  | Calendário visual integrado ao fluxo de produção, com rastreamento de status (Pedido → Produção → Entregue).          |
+| **💰 Financeiro**           | Fluxo de caixa detalhado, gestão de despesas por categoria e controle rigoroso de vendas a prazo (Fiado).                   |
+| **📋 Orçamentos**          | Geração de propostas profissionais com validade configurável e emissão de PDF com QR Code PIX.                           |
+| **👥 Clientes & Produtos**  | Cadastro completo com visualização em cards, busca inteligente e controle de estoque.                                      |
+| **⚙️ Configurações**    | Gestão de usuários com sistema de Cargos e Permissões, personalização de logo e ativação de módulos.                 |
 
 ---
 
@@ -53,13 +53,13 @@ O **Dycore** é um ecossistema SaaS completo, projetado para centralizar e otimi
 
 <div align="center">
 
-| Camada | Tecnologias |
-|:---|:---|
-| **Frontend** | React 18 · TypeScript · Vite · Tailwind CSS · Framer Motion · Lucide Icons |
-| **Backend** | Python · Flask · Werkzeug · Flask-JWT-Extended |
-| **Banco de Dados** | PostgreSQL 16 (Neon.tech — Serverless Cloud) |
-| **Relatórios** | ReportLab (Geração dinâmica de PDFs) · Pillow (Processamento de imagens) |
-| **Segurança** | JWT · Hashing Bcrypt · Controle de Acesso por Roles (RBAC) |
+| Camada                   | Tecnologias                                                                     |
+| :----------------------- | :------------------------------------------------------------------------------ |
+| **Frontend**       | React 18 · TypeScript · Vite · Tailwind CSS · Framer Motion · Lucide Icons |
+| **Backend**        | Python · Flask · Werkzeug · Flask-JWT-Extended                               |
+| **Banco de Dados** | PostgreSQL 16 (Neon.tech — Serverless Cloud)                                   |
+| **Relatórios**    | ReportLab (Geração dinâmica de PDFs) · Pillow (Processamento de imagens)    |
+| **Segurança**     | JWT · Hashing Bcrypt · Controle de Acesso por Roles (RBAC)                    |
 
 </div>
 
@@ -69,11 +69,11 @@ O **Dycore** é um ecossistema SaaS completo, projetado para centralizar e otimi
 
 O sistema implementa controle de acesso baseado em papéis (RBAC):
 
-| Role | Permissões |
-|:---|:---|
-| **Admin** | Controle total: configurações, usuários, financeiro e todos os módulos. |
-| **Gerente** | Acesso a relatórios financeiros e operações, sem configurações globais. |
-| **Operador** | Acesso restrito a vendas, agenda e cadastros operacionais. |
+| Role               | Permissões                                                                  |
+| :----------------- | :--------------------------------------------------------------------------- |
+| **Admin**    | Controle total: configurações, usuários, financeiro e todos os módulos.  |
+| **Gerente**  | Acesso a relatórios financeiros e operações, sem configurações globais. |
+| **Operador** | Acesso restrito a vendas, agenda e cadastros operacionais.                   |
 
 ---
 
@@ -120,8 +120,8 @@ Dycore/
 
 <div align="center">
 
-Idealizado e desenvolvido por **Dy Carlos Santana** 💜
+Idealizado e desenvolvido por **Ed****y Carlos Santana** 💜
 
-**Dycore SaaS — 2026**
+**Dycore - 2026**
 
 </div>

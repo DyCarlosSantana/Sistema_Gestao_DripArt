@@ -89,6 +89,49 @@ python database.py
 
 ---
 
+## 🌐 Usando em Outro Computador
+
+### Opção 1 — Acesso via Rede Local (Sem instalar nada no segundo PC)
+
+Se ambos os computadores estiverem na mesma rede (Wi-Fi ou cabo):
+
+1. Inicie o Dycore no computador principal usando `INICIAR_LOJA.bat`.
+2. No computador principal, descubra o IP local:
+   ```
+   ipconfig
+   ```
+   Procure por **"Endereço IPv4"** (ex: `192.168.1.15`).
+3. No segundo computador, abra o navegador e acesse:
+   ```
+   http://192.168.1.15:5000
+   ```
+4. Se não conectar, libere a porta no Firewall do Windows:
+   ```
+   netsh advfirewall firewall add rule name="Dycore" dir=in action=allow protocol=TCP localport=5000
+   ```
+
+### Opção 2 — Instalação Completa no Segundo PC
+
+Para rodar o sistema de forma independente em outro computador:
+
+1. **Instale o Python 3.10+** → [python.org/downloads](https://www.python.org/downloads/)
+   - Marque **"Add Python to PATH"** durante a instalação.
+
+2. **Copie a pasta do projeto** para o novo computador (via Pendrive, OneDrive ou GitHub).
+
+3. **Copie os arquivos de ambiente** — estes não vão pelo Git:
+   - `.env.prod` (obrigatório para o modo Loja)
+   - `.env.dev` (opcional, apenas se for desenvolver)
+
+4. **Execute o `INICIAR_LOJA.bat`.**
+   - O script detecta automaticamente se é a primeira execução.
+   - Instala todas as dependências Python sozinho.
+   - Conecta ao mesmo banco de dados na nuvem.
+
+> 💡 Como o banco de dados é compartilhado na nuvem, todas as vendas e cadastros estarão sincronizados entre os computadores em tempo real.
+
+---
+
 ## ⚙️ Manutenção do Frontend
 
 O frontend é um projeto React/Vite localizado em `decor-venue-flow-main/`.
