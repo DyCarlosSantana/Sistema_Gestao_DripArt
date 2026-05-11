@@ -8,6 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { usePagination } from "@/hooks/use-pagination";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 export default function UsuariosTab({ usuarios, cargos }: { usuarios: any[]; cargos: any[] }) {
   const qc = useQueryClient();
@@ -16,6 +25,8 @@ export default function UsuariosTab({ usuarios, cargos }: { usuarios: any[]; car
   const [form, setForm] = useState<any>({ nome: "", email: "", role: "operador", senha: "", cargo_id: "" });
   const [senhaOpen, setSenhaOpen] = useState(false);
   const [senhaForm, setSenhaForm] = useState({ senha_atual: "", nova_senha: "" });
+
+  const { currentData, currentPage, maxPage, next, prev } = usePagination(usuarios, 10);
 
   const saveM = useMutation({
     mutationFn: (data: any) => editId ? api.editarUsuario(editId, data) : api.salvarUsuario(data),
@@ -52,7 +63,7 @@ export default function UsuariosTab({ usuarios, cargos }: { usuarios: any[]; car
           <Table>
             <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Cargo</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
             <TableBody>
-              {usuarios.map((u: any) => (
+              {currentData.map((u: any) => (
                 <TableRow key={u.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -69,6 +80,24 @@ export default function UsuariosTab({ usuarios, cargos }: { usuarios: any[]; car
               ))}
             </TableBody>
           </Table>
+
+          {maxPage > 1 && (
+            <Pagination className="mt-6">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious onClick={prev} className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationLink className="font-medium">
+                    Página {currentPage} de {maxPage}
+                  </PaginationLink>
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext onClick={next} className={currentPage === maxPage ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </CardContent>
       </Card>
 

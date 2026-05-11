@@ -9,6 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { usePagination } from "@/hooks/use-pagination";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import {
   Dialog,
   DialogContent,
@@ -272,6 +281,8 @@ export default function LocacoesPage() {
     });
   }, [locQ.data, q, ini, fim]);
 
+  const { currentData, currentPage, maxPage, next, prev } = usePagination(rows, 10);
+
   useEffect(() => {
     if (locItems.length === 0) return;
     const dias = calcDiasLocacao();
@@ -370,7 +381,7 @@ export default function LocacoesPage() {
                 </TableCell>
               </TableRow>
             )}
-            {rows.map((l) => (
+            {currentData.map((l) => (
               <TableRow key={l.id}>
                 <TableCell className="text-muted-foreground">#{l.id}</TableCell>
                 <TableCell className="font-medium text-foreground">{l.cliente_nome}</TableCell>
@@ -418,6 +429,24 @@ export default function LocacoesPage() {
             ))}
           </TableBody>
         </Table>
+
+        {maxPage > 1 && (
+          <Pagination className="mt-6">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious onClick={prev} className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationLink className="font-medium">
+                  Página {currentPage} de {maxPage}
+                </PaginationLink>
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationNext onClick={next} className={currentPage === maxPage ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        )}
       </div>
 
       <Dialog open={modalOpen} onOpenChange={(o) => setModalOpen(o)}>

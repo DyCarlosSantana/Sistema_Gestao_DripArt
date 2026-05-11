@@ -4,12 +4,12 @@ import { Info } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, API_BASE_URL, type VendaRow } from "@/lib/api";
 import { brl, fmtDate, fmtDateTime } from "@/lib/format";
+import { parseInputNumber } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { CurrencyInput, NumberInput } from "@/components/ui/currency-input";
 import {
   Dialog,
   DialogContent,
@@ -128,7 +128,7 @@ export default function PDVPage() {
 
   const calcTotals = useMemo(() => {
     const subtotal = items.reduce((s, i) => s + (i.subtotal || 0), 0);
-    const descVal = Number(desconto) || 0;
+    const descVal = parseInputNumber(desconto);
     const totalCalc = Math.max(0, subtotal - descVal);
     return { subtotal, total: totalCalc };
   }, [items, desconto]);
@@ -185,7 +185,7 @@ export default function PDVPage() {
   function adicionarItem() {
     const desc = (tipo === "produto" && itProdId) ? itDesc : (tipo === "servico" && itServId) ? itDesc : itDesc.trim();
     const qtd = Number(itQtd);
-    const preco = Number(itPreco);
+    const preco = parseInputNumber(itPreco);
     
     if (tipo === "produto" && !itProdId) return toast.error("Selecione um produto");
     if (tipo === "servico" && !itServId) return toast.error("Selecione um serviço");
@@ -218,7 +218,7 @@ export default function PDVPage() {
     mutationFn: async () => {
       if (items.length === 0) throw new Error("Adicione ao menos um item");
       const subtotal = calcTotals.subtotal;
-      const descVal = Number(desconto) || 0;
+      const descVal = parseInputNumber(desconto);
       const totalVal = Math.max(0, subtotal - descVal);
       const payload = {
         cliente_nome: clienteNome.trim(),
@@ -499,11 +499,11 @@ export default function PDVPage() {
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Qtd</label>
-                <NumberInput integer value={itQtd} onChange={(v) => setItQtd(v)} placeholder="1" />
+                <Input inputMode="numeric" placeholder="1" value={itQtd || ""} onChange={(e) => setItQtd(Number(e.target.value) || 0)} />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Valor unit.</label>
-                <CurrencyInput value={itPreco} onChange={(v) => setItPreco(v)} placeholder="0,00" />
+                <Input inputMode="decimal" placeholder="0,00" value={itPreco || ""} onChange={(e) => setItPreco(e.target.value as any)} />
               </div>
             </div>
 
@@ -540,7 +540,7 @@ export default function PDVPage() {
             </div>
             <div className="mt-2 flex items-center justify-between gap-3 text-sm">
               <span className="text-muted-foreground">Desconto (R$)</span>
-              <CurrencyInput value={desconto} onChange={(v) => setDesconto(v)} placeholder="0,00" />
+              <Input inputMode="decimal" placeholder="0,00" value={desconto || ""} onChange={(e) => setDesconto(e.target.value as any)} />
             </div>
             <div className="mt-2 flex items-center justify-between text-base font-bold">
               <span>TOTAL</span>

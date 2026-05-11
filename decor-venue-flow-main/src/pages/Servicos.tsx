@@ -9,12 +9,12 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, type ServicoRow } from "@/lib/api";
+import { parseInputNumber } from "@/lib/utils";
 import { brl } from "@/lib/format";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CurrencyInput } from "@/components/ui/currency-input";
 import {
   Dialog,
   DialogContent,
@@ -77,7 +77,7 @@ export default function ServicosPage() {
           descricao,
           categoria,
           tipo_preco: tipoPreco,
-          preco,
+          preco: parseInputNumber(preco),
         },
         editId ?? undefined
       );
@@ -96,7 +96,7 @@ export default function ServicosPage() {
     setDescricao("");
     setCategoria("");
     setTipoPreco("fixo");
-    setPreco(0);
+    setPreco("");
   }
 
   function abrirNovo() {
@@ -263,10 +263,11 @@ export default function ServicosPage() {
 
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Preço (R$)</label>
-                <CurrencyInput
-                  value={preco}
-                  onChange={(v) => setPreco(v)}
+                <Input
+                  inputMode="decimal"
                   placeholder="0,00"
+                  value={preco || ""}
+                  onChange={(e) => setPreco(e.target.value as any)}
                 />
               </div>
             </div>

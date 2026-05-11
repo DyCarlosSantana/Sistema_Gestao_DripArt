@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERP — Início</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Figtree:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0D0D12;
+  --surface: #13131A;
+  --surface2: #1A1A24;
+  --surface3: #21212E;
+  --border: rgba(255,255,255,0.07);
+  --border-h: rgba(255,255,255,0.13);
+  --text: #F0EEF8;
+  --text-s: rgba(240,238,248,0.55);
+  --text-m: rgba(240,238,248,0.3);
+  --accent: #E8407A;
+  --accent2: #C026D3;
+  --accent-s: rgba(232,64,122,0.12);
+  --accent-b: rgba(232,64,122,0.28);
+  --green: #22C55E; --green-s: rgba(34,197,94,0.12); --green-b: rgba(34,197,94,0.28);
+  --amber: #F59E0B; --amber-s: rgba(245,158,11,0.12); --amber-b: rgba(245,158,11,0.28);
+  --blue: #3B82F6;  --blue-s: rgba(59,130,246,0.12);  --blue-b: rgba(59,130,246,0.28);
+  --purple: #8B5CF6; --purple-s: rgba(139,92,246,0.12);
+  --red: #EF4444; --red-s: rgba(239,68,68,0.12);
+  --teal: #14B8A6; --teal-s: rgba(20,184,166,0.12);
+  --r: 14px; --r-sm: 8px; --r-xs: 6px;
+  --sidebar: 68px;
+  --font-d: 'Space Grotesk', sans-serif;
+  --font-b: 'Figtree', sans-serif;
+}
+html, body { height: 100%; overflow: hidden; }
+body { font-family: var(--font-b); background: var(--bg); color: var(--text); display: flex; font-size: 14px; }
+* { scrollbar-width: thin; scrollbar-color: var(--surface3) transparent; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: var(--sidebar); height: 100vh; background: var(--surface);
+  border-right: 1px solid var(--border); display: flex; flex-direction: column;
+  align-items: center; padding: 16px 0; position: fixed; left: 0; top: 0; z-index: 100;
+  transition: width .32s cubic-bezier(.16,1,.3,1); overflow: hidden;
+}
+.sidebar:hover { width: 230px; align-items: flex-start; }
+.sb-logo-wrap { display: flex; align-items: center; gap: 11px; width: 100%; padding-left: 16px; margin-bottom: 24px; white-space: nowrap; }
+.sb-logo { width: 34px; height: 34px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-family: var(--font-d); font-weight: 700; font-size: 15px; color: #fff; flex-shrink: 0; }
+.sb-logo-text { font-family: var(--font-d); font-weight: 600; font-size: 14.5px; opacity: 0; transition: opacity .2s .08s; pointer-events: none; }
+.sidebar:hover .sb-logo-text { opacity: 1; }
+.sb-nav { display: flex; flex-direction: column; gap: 1px; width: 100%; padding: 0 8px; flex: 1; }
+.nav-item { display: flex; align-items: center; gap: 11px; padding: 9px 8px; border-radius: var(--r-sm); cursor: pointer; color: var(--text-s); white-space: nowrap; text-decoration: none; transition: background .2s, color .2s; position: relative; }
+.nav-item:hover { background: var(--surface3); color: var(--text); }
+.nav-item.active { background: var(--accent-s); color: var(--accent); }
+.nav-item.active::before { content: ''; position: absolute; left: -8px; top: 50%; transform: translateY(-50%); width: 3px; height: 18px; background: var(--accent); border-radius: 0 3px 3px 0; }
+.nav-icon { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.nav-icon svg { width: 17px; height: 17px; }
+.nav-label { font-size: 13px; font-weight: 500; opacity: 0; transition: opacity .2s .08s; pointer-events: none; flex: 1; }
+.sidebar:hover .nav-label { opacity: 1; }
+.nav-badge { font-size: 9.5px; font-weight: 700; padding: 2px 5px; border-radius: 20px; background: var(--accent); color: #fff; opacity: 0; transition: opacity .2s .08s; flex-shrink: 0; }
+.sidebar:hover .nav-badge { opacity: 1; }
+.sb-divider { width: calc(100% - 16px); height: 1px; background: var(--border); margin: 8px 8px; }
+.sb-bottom { width: 100%; padding: 0 8px; }
+
+/* ── MAIN ── */
+.main { margin-left: var(--sidebar); flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+/* ── TOP HEADER ── */
+.top-header { height: 54px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 14px; flex-shrink: 0; }
+.th-search { display: flex; align-items: center; gap: 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 7px 13px; flex: 1; max-width: 360px; transition: border-color .2s; }
+.th-search:focus-within { border-color: var(--accent); }
+.th-search svg { color: var(--text-m); width: 14px; height: 14px; flex-shrink: 0; }
+.th-search input { background: none; border: none; outline: none; color: var(--text); font-family: var(--font-b); font-size: 13px; flex: 1; }
+.th-search input::placeholder { color: var(--text-m); }
+.th-spacer { flex: 1; }
+.th-btn { width: 34px; height: 34px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface2); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-s); transition: all .2s; position: relative; }
+.th-btn:hover { background: var(--surface3); color: var(--text); border-color: var(--border-h); }
+.th-btn svg { width: 15px; height: 15px; }
+.notif-dot { position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; border: 1.5px solid var(--surface); }
+.th-user { display: flex; align-items: center; gap: 9px; padding: 5px 11px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface2); cursor: pointer; transition: all .2s; }
+.th-user:hover { background: var(--surface3); border-color: var(--border-h); }
+.u-avatar { width: 26px; height: 26px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-d); font-weight: 700; font-size: 10px; color: #fff; flex-shrink: 0; }
+.u-name { font-size: 12px; font-weight: 600; }
+.u-role { font-size: 9.5px; color: var(--text-m); text-transform: uppercase; letter-spacing: .05em; }
+
+/* ── SUB HEADER ── */
+.sub-header { height: 46px; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 6px; flex-shrink: 0; }
+.sub-header-title { font-family: var(--font-d); font-size: 15px; font-weight: 600; }
+.sub-header-sub { font-size: 12px; color: var(--text-s); margin-left: 4px; }
+.sub-header-spacer { flex: 1; }
+.sub-date { font-size: 12px; color: var(--text-m); background: var(--surface3); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border); }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--r-sm); font-family: var(--font-b); font-size: 12.5px; font-weight: 500; cursor: pointer; transition: all .2s; border: none; text-decoration: none; }
+.btn svg { width: 13px; height: 13px; }
+.btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+.btn-primary:hover { opacity: .9; transform: translateY(-1px); }
+.btn-ghost { background: var(--surface3); border: 1px solid var(--border); color: var(--text-s); }
+.btn-ghost:hover { border-color: var(--border-h); color: var(--text); }
+
+/* ── CONTENT ── */
+.content { flex: 1; overflow: hidden; padding: 16px; display: grid; grid-template-columns: 1fr 320px; grid-template-rows: 1fr auto; gap: 14px; }
+
+/* ── LEFT COLUMN ── */
+.left-col { display: flex; flex-direction: column; gap: 14px; overflow: hidden; min-height: 0; }
+
+/* ── TOP PANELS (notif + tarefas) ── */
+.top-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; min-height: 0; flex: 1; }
+
+/* ── CARD BASE ── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); display: flex; flex-direction: column; overflow: hidden; transition: border-color .2s; }
+.card:hover { border-color: var(--border-h); }
+.card-head { padding: 14px 16px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-shrink: 0; }
+.card-title { font-family: var(--font-d); font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.card-title svg { width: 14px; height: 14px; }
+.card-body { flex: 1; overflow-y: auto; padding: 12px 14px; }
+.card-body::-webkit-scrollbar { width: 4px; }
+.card-body::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 10px; }
+.card-foot { padding: 10px 14px; border-top: 1px solid var(--border); flex-shrink: 0; }
+
+/* badge count */
+.count-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; }
+.count-badge.red { background: var(--red-s); color: var(--red); }
+.count-badge.amber { background: var(--amber-s); color: var(--amber); }
+.count-badge.blue { background: var(--blue-s); color: var(--blue); }
+.count-badge.green { background: var(--green-s); color: var(--green); }
+.count-badge.accent { background: var(--accent-s); color: var(--accent); }
+
+/* ── NOTIFICAÇÕES ── */
+.notif-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; transition: background .15s; border-radius: var(--r-xs); }
+.notif-item:last-child { border-bottom: none; padding-bottom: 0; }
+.notif-item:first-child { padding-top: 0; }
+.notif-item:hover { background: var(--surface2); padding-left: 6px; padding-right: 6px; margin: 0 -6px; }
+.notif-dot-icon { width: 32px; height: 32px; border-radius: var(--r-xs); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+.notif-dot-icon svg { width: 14px; height: 14px; }
+.notif-info { flex: 1; min-width: 0; }
+.notif-title { font-size: 12.5px; font-weight: 600; line-height: 1.3; }
+.notif-desc { font-size: 11.5px; color: var(--text-s); margin-top: 2px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.notif-time { font-size: 10.5px; color: var(--text-m); flex-shrink: 0; white-space: nowrap; padding-top: 2px; }
+.notif-unread { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 6px; }
+
+/* ── TAREFAS ── */
+.task-item { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; }
+.task-item:last-child { border-bottom: none; padding-bottom: 0; }
+.task-item:first-child { padding-top: 0; }
+.task-check { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--border-h); display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; transition: all .2s; }
+.task-check:hover { border-color: var(--green); }
+.task-check.done { background: var(--green); border-color: var(--green); }
+.task-check.done svg { opacity: 1; }
+.task-check svg { width: 9px; height: 9px; color: #fff; opacity: 0; }
+.task-body { flex: 1; min-width: 0; }
+.task-name { font-size: 12.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.task-item.done-task .task-name { text-decoration: line-through; color: var(--text-m); }
+.task-meta { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.task-time { font-size: 11px; color: var(--text-m); display: flex; align-items: center; gap: 3px; }
+.task-time svg { width: 10px; height: 10px; }
+.tag { display: inline-flex; align-items: center; font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 20px; }
+.tag.blue { background: var(--blue-s); color: var(--blue); }
+.tag.pink { background: var(--accent-s); color: var(--accent); }
+.tag.amber { background: var(--amber-s); color: var(--amber); }
+.tag.green { background: var(--green-s); color: var(--green); }
+.tag.purple { background: var(--purple-s); color: var(--purple); }
+.tag.teal { background: var(--teal-s); color: var(--teal); }
+.task-priority { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── ENCOMENDAS ── */
+.encomendas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.enc-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 12px 14px; cursor: pointer; transition: all .2s; position: relative; overflow: hidden; }
+.enc-card:hover { border-color: var(--border-h); transform: translateY(-1px); }
+.enc-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 3px 0 0 3px; }
+.enc-card.urgent::before { background: var(--red); }
+.enc-card.soon::before { background: var(--amber); }
+.enc-card.normal::before { background: var(--blue); }
+.enc-card.done::before { background: var(--green); }
+.enc-card-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+.enc-id { font-size: 10px; font-weight: 700; color: var(--text-m); font-family: monospace; }
+.enc-status { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; }
+.enc-status.urgent { background: var(--red-s); color: var(--red); }
+.enc-status.soon { background: var(--amber-s); color: var(--amber); }
+.enc-status.normal { background: var(--blue-s); color: var(--blue); }
+.enc-status.done { background: var(--green-s); color: var(--green); }
+.enc-name { font-size: 12.5px; font-weight: 600; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.enc-client { font-size: 11.5px; color: var(--text-s); margin-bottom: 8px; }
+.enc-foot { display: flex; align-items: center; justify-content: space-between; }
+.enc-date { font-size: 11px; color: var(--text-m); display: flex; align-items: center; gap: 4px; }
+.enc-date svg { width: 10px; height: 10px; }
+.enc-progress { flex: 1; margin: 0 10px; height: 3px; background: var(--surface3); border-radius: 10px; overflow: hidden; }
+.enc-progress-fill { height: 100%; border-radius: 10px; }
+
+/* ── RIGHT COLUMN ── */
+.right-col { display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
+
+/* ── ACESSO RÁPIDO ── */
+.qa-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 9px; }
+.qa-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 14px 10px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: all .22s; text-decoration: none; color: var(--text); position: relative; overflow: hidden; }
+.qa-btn:hover { border-color: var(--border-h); transform: translateY(-2px); background: var(--surface3); }
+.qa-btn::after { content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity .2s; }
+.qa-btn:hover::after { opacity: 1; }
+.qa-icon { width: 38px; height: 38px; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.qa-icon svg { width: 18px; height: 18px; }
+.qa-label { font-size: 11.5px; font-weight: 600; text-align: center; line-height: 1.3; }
+
+/* ── MINI CALENDAR ── */
+.cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.cal-month { font-family: var(--font-d); font-size: 13px; font-weight: 600; }
+.cal-nav-btn { width: 24px; height: 24px; border-radius: var(--r-xs); border: 1px solid var(--border); background: var(--surface2); color: var(--text-s); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; transition: all .2s; }
+.cal-nav-btn:hover { border-color: var(--border-h); color: var(--text); background: var(--surface3); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-day-name { text-align: center; font-size: 9.5px; font-weight: 700; color: var(--text-m); padding: 3px 0; text-transform: uppercase; }
+.cal-day { text-align: center; font-size: 11.5px; padding: 5px 2px; border-radius: var(--r-xs); cursor: pointer; color: var(--text-s); transition: all .15s; position: relative; }
+.cal-day:hover { background: var(--surface3); color: var(--text); }
+.cal-day.today { background: var(--accent-s); color: var(--accent); font-weight: 700; }
+.cal-day.has-event::after { content: ''; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+.cal-day.today.has-event::after { background: #fff; }
+.cal-day.other { opacity: .25; }
+.cal-day.weekend { color: var(--text-m); }
+
+/* ── AGENDA PREVIEW (below calendar) ── */
+.agenda-list { display: flex; flex-direction: column; gap: 7px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.agenda-section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text-m); margin-bottom: 4px; }
+.agenda-item { display: flex; align-items: center; gap: 9px; padding: 8px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-xs); cursor: pointer; transition: border-color .2s; }
+.agenda-item:hover { border-color: var(--border-h); }
+.agenda-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.agenda-info { flex: 1; min-width: 0; }
+.agenda-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agenda-detail { font-size: 11px; color: var(--text-s); margin-top: 1px; }
+.agenda-time-badge { font-size: 10.5px; font-weight: 600; color: var(--text-m); flex-shrink: 0; }
+
+/* ── VIEW MORE LINK ── */
+.view-more { font-size: 12px; color: var(--accent); text-decoration: none; display: flex; align-items: center; gap: 4px; font-weight: 500; cursor: pointer; }
+.view-more:hover { opacity: .8; }
+.view-more svg { width: 12px; height: 12px; }
+
+/* ── PROGRESS MINI ── */
+.mini-prog { height: 4px; background: var(--surface3); border-radius: 10px; overflow: hidden; margin-top: 6px; }
+.mini-prog-fill { height: 100%; border-radius: 10px; }
+
+/* ONLINE DOT */
+.online-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); border: 1.5px solid var(--surface); margin-left: 2px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-logo-wrap">
+    <div class="sb-logo">E</div>
+    <span class="sb-logo-text">ERP System</span>
+  </div>
+  <nav class="sb-nav">
+    <a class="nav-item active" href="#">
+      <div class="nav-icon"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
+      <span class="nav-label">Início</span>
+    </a>
+    <a class="nav-item" href="#">
+      <div class="nav-icon"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></div>
+      <span class="nav-label">Caixa PDV</span>
+      <span class="nav-badge">2</span>
+    </a>
+    <a class="nav-item" href="#">
+      <div class="nav-icon"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+      <span class="nav-label">Locações</span>
+    </a>
+    <a class="nav-item" href="#">
+      <div class="nav-icon"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+      <span class="nav-label">Encomendas</span>
+      <span class="nav-badge">5</span>
+    </a>
+    <a class="nav-item" href="#">
+      <div class="nav-icon"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+      <span class="nav-label">Clientes</span>
+    </a>
+    <a class="nav-item" href="#">
+      <div class="nav-icon"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
+      <span class="nav-label">Estoque</span>
+    </a>
+    <a class="nav-item" href="#">
+      <div class="nav-icon"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+      <span class="nav-label">Financeiro</span>
+    </a>
+    <a class="nav-item" href="#">
+      <div class="nav-icon"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+      <span class="nav-label">Agenda</span>
+    </a>
+    <a class="nav-item" href="#">
+      <div class="nav-icon"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+      <span class="nav-label">Relatórios</span>
+    </a>
+    <div class="sb-divider"></div>
+    <a class="nav-item" href="#">
+      <div class="nav-icon"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+      <span class="nav-label">Configurações</span>
+    </a>
+  </nav>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- TOP HEADER -->
+  <div class="top-header">
+    <div class="th-search">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Buscar clientes, locações, encomendas…"/>
+      <span style="font-size:11px;color:var(--text-m);background:var(--surface3);padding:2px 6px;border-radius:4px;border:1px solid var(--border)">⌘K</span>
+    </div>
+    <div class="th-spacer"></div>
+    <div class="th-btn" id="notif-btn" onclick="toggleNotifPanel()">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <div class="notif-dot" id="notif-dot"></div>
+    </div>
+    <div class="th-btn">
+      <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    </div>
+    <div class="th-user">
+      <div class="u-avatar">EC</div>
+      <div>
+        <div class="u-name">Edy Carlos</div>
+        <div class="u-role">Admin</div>
+      </div>
+      <div class="online-dot"></div>
+      <svg style="width:11px;height:11px;color:var(--text-m);margin-left:2px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+  </div>
+
+  <!-- SUB HEADER -->
+  <div class="sub-header">
+    <div>
+      <span class="sub-header-title">Olá, Edy 👋</span>
+      <span class="sub-header-sub">— Você tem <strong style="color:var(--text)">7 pendências</strong> hoje</span>
+    </div>
+    <div class="th-spacer"></div>
+    <span class="sub-date">Sábado, 10 de maio de 2025</span>
+  </div>
+
+  <!-- CONTENT GRID -->
+  <div class="content">
+
+    <!-- LEFT COLUMN -->
+    <div class="left-col">
+
+      <!-- TOP PANELS: NOTIFICAÇÕES + TAREFAS -->
+      <div class="top-panels">
+
+        <!-- NOTIFICAÇÕES -->
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title" style="color:var(--accent)">
+              <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              Notificações
+            </div>
+            <span class="count-badge red">4 novas</span>
+          </div>
+          <div class="card-body">
+
+            <div class="notif-item">
+              <div class="notif-dot-icon" style="background:var(--red-s);color:var(--red)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+              <div class="notif-info">
+                <div class="notif-title">Locação vencida — Contrato #315</div>
+                <div class="notif-desc">Paulo Gomes · TV 55" + suporte · Venceu há 12 dias</div>
+              </div>
+              <div class="notif-unread"></div>
+              <span class="notif-time">09:14</span>
+            </div>
+
+            <div class="notif-item">
+              <div class="notif-dot-icon" style="background:var(--amber-s);color:var(--amber)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+              <div class="notif-info">
+                <div class="notif-title">Vencimento iminente — Contrato #338</div>
+                <div class="notif-desc">Rafael Pinto · Sofá + poltrona · Vence hoje</div>
+              </div>
+              <div class="notif-unread"></div>
+              <span class="notif-time">08:50</span>
+            </div>
+
+            <div class="notif-item">
+              <div class="notif-dot-icon" style="background:var(--amber-s);color:var(--amber)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
+              <div class="notif-info">
+                <div class="notif-title">Estoque baixo — Cadeira escritório</div>
+                <div class="notif-desc">Apenas 4 unidades restantes · Mínimo recomendado: 10</div>
+              </div>
+              <div class="notif-unread"></div>
+              <span class="notif-time">08:22</span>
+            </div>
+
+            <div class="notif-item">
+              <div class="notif-dot-icon" style="background:var(--green-s);color:var(--green)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+              <div class="notif-info">
+                <div class="notif-title">Pagamento recebido — R$ 480,00</div>
+                <div class="notif-desc">João Silva · Locação #374 · Pago via PIX</div>
+              </div>
+              <span class="notif-time">07:58</span>
+            </div>
+
+            <div class="notif-item">
+              <div class="notif-dot-icon" style="background:var(--blue-s);color:var(--blue)"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+              <div class="notif-info">
+                <div class="notif-title">Encomenda pronta — #ENC-042</div>
+                <div class="notif-desc">Mesa de jantar personalizada · Aguardando retirada</div>
+              </div>
+              <span class="notif-time">Ontem</span>
+            </div>
+
+          </div>
+          <div class="card-foot" style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11.5px;color:var(--text-m)">5 notificações · 4 não lidas</span>
+            <a class="view-more" href="#">Ver todas <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></a>
+          </div>
+        </div>
+
+        <!-- TAREFAS / AFAZERES -->
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title" style="color:var(--blue)">
+              <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              Tarefas de Hoje
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:11px;color:var(--text-m)">3 / 7</span>
+              <span class="count-badge blue">4 restantes</span>
+            </div>
+          </div>
+          <div class="card-body">
+
+            <!-- Progresso geral -->
+            <div style="margin-bottom:12px">
+              <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+                <span style="font-size:11px;color:var(--text-m)">Progresso do dia</span>
+                <span style="font-size:11px;font-weight:600;color:var(--blue)">43%</span>
+              </div>
+              <div class="mini-prog"><div class="mini-prog-fill" style="width:43%;background:linear-gradient(90deg,var(--blue),var(--purple))"></div></div>
+            </div>
+
+            <div class="task-item done-task">
+              <div class="task-check done" onclick="toggleTask(this)"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="task-body">
+                <div class="task-name">Contrato #374 — João Silva</div>
+                <div class="task-meta"><span class="task-time"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>09:00</span><span class="tag blue">Locação</span></div>
+              </div>
+              <div class="task-priority" style="background:var(--green)"></div>
+            </div>
+
+            <div class="task-item done-task">
+              <div class="task-check done" onclick="toggleTask(this)"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="task-body">
+                <div class="task-name">PDV — Venda Fernanda Oliveira</div>
+                <div class="task-meta"><span class="task-time"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>10:15</span><span class="tag pink">PDV</span></div>
+              </div>
+              <div class="task-priority" style="background:var(--green)"></div>
+            </div>
+
+            <div class="task-item done-task">
+              <div class="task-check done" onclick="toggleTask(this)"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="task-body">
+                <div class="task-name">Confirmar retirada — Sofá</div>
+                <div class="task-meta"><span class="task-time"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>10:50</span><span class="tag amber">Logística</span></div>
+              </div>
+              <div class="task-priority" style="background:var(--green)"></div>
+            </div>
+
+            <div class="task-item">
+              <div class="task-check" onclick="toggleTask(this)"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="task-body">
+                <div class="task-name">Renovação contrato #338 — Rafael</div>
+                <div class="task-meta"><span class="task-time"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>14:00</span><span class="tag blue">Locação</span><span class="tag amber">Vence hoje</span></div>
+              </div>
+              <div class="task-priority" style="background:var(--red)"></div>
+            </div>
+
+            <div class="task-item">
+              <div class="task-check" onclick="toggleTask(this)"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="task-body">
+                <div class="task-name">Aprovar encomenda #ENC-047</div>
+                <div class="task-meta"><span class="task-time"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>15:00</span><span class="tag teal">Encomenda</span></div>
+              </div>
+              <div class="task-priority" style="background:var(--amber)"></div>
+            </div>
+
+            <div class="task-item">
+              <div class="task-check" onclick="toggleTask(this)"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="task-body">
+                <div class="task-name">Novo cliente — Ana Ferreira</div>
+                <div class="task-meta"><span class="task-time"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>16:30</span><span class="tag green">Cliente</span></div>
+              </div>
+              <div class="task-priority" style="background:var(--blue)"></div>
+            </div>
+
+            <div class="task-item">
+              <div class="task-check" onclick="toggleTask(this)"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="task-body">
+                <div class="task-name">Fechar caixa do dia</div>
+                <div class="task-meta"><span class="task-time"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>18:00</span><span class="tag pink">PDV</span></div>
+              </div>
+              <div class="task-priority" style="background:var(--blue)"></div>
+            </div>
+
+          </div>
+          <div class="card-foot" style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11.5px;color:var(--text-m)">Clique para marcar como concluído</span>
+            <a class="view-more" href="#">Ver todas <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></a>
+          </div>
+        </div>
+
+      </div><!-- /top-panels -->
+
+      <!-- ENCOMENDAS em mini cards -->
+      <div class="card" style="flex-shrink:0">
+        <div class="card-head">
+          <div class="card-title" style="color:var(--teal)">
+            <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            Encomendas em andamento
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="count-badge accent">5 ativas</span>
+            <a class="view-more" href="#">Ver todas <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></a>
+          </div>
+        </div>
+        <div class="card-body" style="padding:12px 14px">
+          <div class="encomendas-grid">
+
+            <div class="enc-card urgent">
+              <div class="enc-card-head"><span class="enc-id">#ENC-041</span><span class="enc-status urgent">Urgente</span></div>
+              <div class="enc-name">Mesa jantar 8 lugares</div>
+              <div class="enc-client">Carlos Mendes</div>
+              <div class="enc-foot">
+                <span class="enc-date"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>12/05</span>
+                <div class="enc-progress"><div class="enc-progress-fill" style="width:75%;background:var(--red)"></div></div>
+                <span style="font-size:10px;color:var(--red);font-weight:700">75%</span>
+              </div>
+            </div>
+
+            <div class="enc-card soon">
+              <div class="enc-card-head"><span class="enc-id">#ENC-042</span><span class="enc-status soon">Pronta</span></div>
+              <div class="enc-name">Mesa de jantar personalizada</div>
+              <div class="enc-client">Ana Ferreira</div>
+              <div class="enc-foot">
+                <span class="enc-date"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>10/05</span>
+                <div class="enc-progress"><div class="enc-progress-fill" style="width:100%;background:var(--amber)"></div></div>
+                <span style="font-size:10px;color:var(--amber);font-weight:700">100%</span>
+              </div>
+            </div>
+
+            <div class="enc-card normal">
+              <div class="enc-card-head"><span class="enc-id">#ENC-045</span><span class="enc-status normal">Em prod.</span></div>
+              <div class="enc-name">Estante sob medida</div>
+              <div class="enc-client">Pedro Lima</div>
+              <div class="enc-foot">
+                <span class="enc-date"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>18/05</span>
+                <div class="enc-progress"><div class="enc-progress-fill" style="width:40%;background:var(--blue)"></div></div>
+                <span style="font-size:10px;color:var(--blue);font-weight:700">40%</span>
+              </div>
+            </div>
+
+            <div class="enc-card normal">
+              <div class="enc-card-head"><span class="enc-id">#ENC-047</span><span class="enc-status normal">Aguard. aprovação</span></div>
+              <div class="enc-name">Rack TV painel ripado</div>
+              <div class="enc-client">Mariana Costa</div>
+              <div class="enc-foot">
+                <span class="enc-date"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>22/05</span>
+                <div class="enc-progress"><div class="enc-progress-fill" style="width:10%;background:var(--blue)"></div></div>
+                <span style="font-size:10px;color:var(--blue);font-weight:700">10%</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /left-col -->
+
+    <!-- RIGHT COLUMN -->
+    <div class="right-col">
+
+      <!-- ACESSO RÁPIDO -->
+      <div class="card" style="flex-shrink:0">
+        <div class="card-head">
+          <div class="card-title">
+            <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Acesso Rápido
+          </div>
+        </div>
+        <div class="card-body" style="padding:14px">
+          <div class="qa-grid">
+
+            <a class="qa-btn" href="#">
+              <div class="qa-icon" style="background:var(--accent-s);color:var(--accent)"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></div>
+              <span class="qa-label">Nova Venda</span>
+            </a>
+
+            <a class="qa-btn" href="#">
+              <div class="qa-icon" style="background:var(--blue-s);color:var(--blue)"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+              <span class="qa-label">Nova Locação</span>
+            </a>
+
+            <a class="qa-btn" href="#">
+              <div class="qa-icon" style="background:var(--teal-s);color:var(--teal)"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+              <span class="qa-label">Encomendas</span>
+            </a>
+
+            <a class="qa-btn" href="#">
+              <div class="qa-icon" style="background:var(--red-s);color:var(--red)"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+              <span class="qa-label">Contas a Receber</span>
+            </a>
+
+            <a class="qa-btn" href="#">
+              <div class="qa-icon" style="background:var(--green-s);color:var(--green)"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+              <span class="qa-label">Criar Orçamento</span>
+            </a>
+
+            <a class="qa-btn" href="#">
+              <div class="qa-icon" style="background:var(--purple-s);color:var(--purple)"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+              <span class="qa-label">Agenda</span>
+            </a>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- MINI CALENDÁRIO + AGENDA -->
+      <div class="card" style="flex:1;overflow:hidden">
+        <div class="card-head">
+          <div class="card-title" style="color:var(--purple)">
+            <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Calendário
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="cal-nav-btn">‹</button>
+            <span style="font-size:12px;font-weight:600;line-height:24px;padding:0 4px">Mai 2025</span>
+            <button class="cal-nav-btn">›</button>
+          </div>
+        </div>
+        <div class="card-body" style="overflow-y:auto">
+          <!-- Calendar -->
+          <div class="cal-grid">
+            <div class="cal-day-name">D</div><div class="cal-day-name">S</div><div class="cal-day-name">T</div><div class="cal-day-name">Q</div><div class="cal-day-name">Q</div><div class="cal-day-name">S</div><div class="cal-day-name">S</div>
+            <div class="cal-day other">27</div><div class="cal-day other">28</div><div class="cal-day other">29</div><div class="cal-day other">30</div>
+            <div class="cal-day has-event">1</div><div class="cal-day has-event">2</div><div class="cal-day weekend">3</div>
+            <div class="cal-day has-event weekend">4</div><div class="cal-day">5</div><div class="cal-day">6</div><div class="cal-day has-event">7</div>
+            <div class="cal-day">8</div><div class="cal-day has-event">9</div><div class="cal-day today has-event">10</div>
+            <div class="cal-day weekend">11</div><div class="cal-day">12</div><div class="cal-day">13</div><div class="cal-day has-event">14</div>
+            <div class="cal-day">15</div><div class="cal-day has-event">16</div><div class="cal-day weekend">17</div>
+            <div class="cal-day weekend">18</div><div class="cal-day">19</div><div class="cal-day">20</div><div class="cal-day has-event">21</div>
+            <div class="cal-day">22</div><div class="cal-day">23</div><div class="cal-day weekend">24</div>
+            <div class="cal-day weekend">25</div><div class="cal-day">26</div><div class="cal-day has-event">27</div><div class="cal-day">28</div>
+            <div class="cal-day">29</div><div class="cal-day">30</div><div class="cal-day has-event weekend">31</div>
+          </div>
+
+          <!-- Agenda do dia -->
+          <div class="agenda-list">
+            <div class="agenda-section-label">Hoje — 10 de maio</div>
+
+            <div class="agenda-item">
+              <div class="agenda-dot" style="background:var(--green)"></div>
+              <div class="agenda-info">
+                <div class="agenda-name">Contrato #374 — João Silva</div>
+                <div class="agenda-detail">Assinatura · Concluído</div>
+              </div>
+              <span class="agenda-time-badge">09:00</span>
+            </div>
+
+            <div class="agenda-item">
+              <div class="agenda-dot" style="background:var(--amber)"></div>
+              <div class="agenda-info">
+                <div class="agenda-name">Retirada — Kit cozinha</div>
+                <div class="agenda-detail">Maria Souza · Centro</div>
+              </div>
+              <span class="agenda-time-badge">11:30</span>
+            </div>
+
+            <div class="agenda-item">
+              <div class="agenda-dot" style="background:var(--red)"></div>
+              <div class="agenda-info">
+                <div class="agenda-name">Renovação contrato #338</div>
+                <div class="agenda-detail">Rafael Pinto · Vence hoje</div>
+              </div>
+              <span class="agenda-time-badge">14:00</span>
+            </div>
+
+            <div class="agenda-item">
+              <div class="agenda-dot" style="background:var(--blue)"></div>
+              <div class="agenda-info">
+                <div class="agenda-name">Entrega — Mesa jantar</div>
+                <div class="agenda-detail">João Alves · Zona Leste</div>
+              </div>
+              <span class="agenda-time-badge">15:30</span>
+            </div>
+
+            <div class="agenda-item">
+              <div class="agenda-dot" style="background:var(--accent)"></div>
+              <div class="agenda-info">
+                <div class="agenda-name">Novo cliente — Ana Ferreira</div>
+                <div class="agenda-detail">Cadastro + proposta</div>
+              </div>
+              <span class="agenda-time-badge">16:30</span>
+            </div>
+
+          </div>
+        </div>
+        <div class="card-foot" style="display:flex;justify-content:flex-end">
+          <a class="view-more" href="#">Abrir agenda completa <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></a>
+        </div>
+      </div>
+
+    </div><!-- /right-col -->
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+function toggleTask(checkEl) {
+  checkEl.classList.toggle('done');
+  const item = checkEl.closest('.task-item');
+  item.classList.toggle('done-task');
+  const svg = checkEl.querySelector('svg');
+  svg.style.opacity = checkEl.classList.contains('done') ? '1' : '0';
+  updateProgress();
+}
+
+function updateProgress() {
+  const total = document.querySelectorAll('.task-item').length;
+  const done = document.querySelectorAll('.task-item.done-task').length;
+  const pct = Math.round((done / total) * 100);
+  const fill = document.querySelector('.mini-prog-fill');
+  const label = document.querySelector('.mini-prog').previousElementSibling.querySelector('span:last-child');
+  if (fill) fill.style.width = pct + '%';
+  if (label) label.textContent = pct + '%';
+  const countBadge = document.querySelector('.count-badge.blue');
+  if (countBadge) countBadge.textContent = (total - done) + ' restantes';
+}
+
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+    item.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>
