@@ -15,6 +15,8 @@ import { MetricCard } from "@/components/MetricCard";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { brl, fmtDate } from "@/lib/format";
+import { TimeFilter } from "@/components/TimeFilter";
+import { startOfMonth, endOfMonth, format } from "date-fns";
 import {
   Area,
   AreaChart,
@@ -75,9 +77,12 @@ export default function Dashboard() {
     month: "long",
   });
 
+  const [dataIni, setDataIni] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
+  const [dataFim, setDataFim] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
+
   const dashQ = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: api.dashboard,
+    queryKey: ["dashboard", dataIni, dataFim],
+    queryFn: () => api.dashboard({ data_ini: dataIni, data_fim: dataFim }),
     refetchInterval: 30_000,
   });
   const evoQ = useQuery({
@@ -108,17 +113,22 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
         <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            Dashboard
+          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Bem-vindo ao Dycore
           </h1>
-          <p className="mt-0.5 text-sm capitalize text-muted-foreground">
-            {today}
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{today}</p>
         </div>
-        <div className="flex gap-2">
-          <div className="rounded-xl border border-border bg-card/70 px-3 py-2 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-3">
+          <TimeFilter 
+            defaultOption="este_mes"
+            onFilterChange={(ini, fim) => {
+              setDataIni(ini);
+              setDataFim(fim);
+            }} 
+          />
+          <div className="rounded-xl border border-border bg-card/70 px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
             {dashQ.isLoading
               ? "Carregando…"
               : dashQ.isError
@@ -156,17 +166,17 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           {
-            label: "Receita do mês",
+            label: "Receita",
             value: brl(d?.receita_mes),
-            subtitle: "atual",
+            subtitle: "no período",
             subtitleColor: "muted" as const,
             icon: DollarSign,
             gradient: "bg-gradient-brand",
           },
           {
-            label: "Vendas hoje",
+            label: "Vendas",
             value: brl(d?.vendas_hoje_total),
-            subtitle: d ? `${d.vendas_hoje_count} pedidos` : "—",
+            subtitle: d ? `${d.vendas_hoje_count} pedidos no período` : "—",
             subtitleColor: "muted" as const,
             icon: ShoppingBag,
             gradient: "bg-gradient-cool",

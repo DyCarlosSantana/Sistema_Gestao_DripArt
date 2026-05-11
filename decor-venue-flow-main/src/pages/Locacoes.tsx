@@ -3,6 +3,7 @@ import { Info } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, LocacaoRow, API_BASE_URL } from "@/lib/api";
 import { brl, fmtDate } from "@/lib/format";
+import { parseInputNumber } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -71,8 +72,8 @@ export default function LocacoesPage() {
   >([]);
 
   const [selId, setSelId] = useState<number | "">("");
-  const [selQtd, setSelQtd] = useState<number>(1);
-  const [selPreco, setSelPreco] = useState<number>(0);
+  const [selQtd, setSelQtd] = useState<string>("1");
+  const [selPreco, setSelPreco] = useState<string>("");
 
   const locQ = useQuery({
     queryKey: ["locacoes", status],
@@ -136,8 +137,8 @@ export default function LocacoesPage() {
     setValorEntrada("");
     setLocItems([]);
     setSelId("");
-    setSelQtd(1);
-    setSelPreco(0);
+    setSelQtd("1");
+    setSelPreco("");
   }
 
   async function abrirNova() {
@@ -178,8 +179,8 @@ export default function LocacoesPage() {
   function adicionarItemModal() {
     const id = selId;
     if (!id) return toast.error("Selecione um item/kit");
-    const qtd = Number(selQtd);
-    const preco = Number(selPreco);
+    const qtd = parseInputNumber(selQtd);
+    const preco = parseInputNumber(selPreco);
     const dias = calcDiasLocacao();
     if (!Number.isFinite(qtd) || qtd <= 0) return toast.error("Quantidade inválida");
     if (!Number.isFinite(preco) || preco < 0) return toast.error("Preço inválido");
@@ -215,9 +216,6 @@ export default function LocacoesPage() {
       toast.success("Venda gerada no PDV!");
       await qc.invalidateQueries({ queryKey: ["locacoes"] });
       await qc.invalidateQueries({ queryKey: ["dashboard"] });
-      if (variables.forma === "fiado") {
-        navigate("/fiado");
-      }
     },
     onError: () => toast.error("Erro ao converter para venda")
   });
@@ -227,7 +225,7 @@ export default function LocacoesPage() {
       if (!clienteNome.trim()) throw new Error("Cliente é obrigatório");
       if (locItems.length === 0) throw new Error("Adicione itens à locação");
       const subtotal = locItems.reduce((s, i) => s + (i.subtotal || 0), 0);
-      const descVal = Number(desconto) || 0;
+      const descVal = parseInputNumber(desconto) || 0;
       const totalVal = Math.max(0, subtotal - descVal);
 
       const payload = {
@@ -238,7 +236,7 @@ export default function LocacoesPage() {
         subtotal,
         desconto: descVal,
         total: totalVal,
-        valor_entrada: Number(valorEntrada) || 0,
+        valor_entrada: parseInputNumber(valorEntrada) || 0,
         forma_pagamento: formaPagamento,
         obs,
         itens: locItems.map((it) => ({
@@ -278,12 +276,9 @@ export default function LocacoesPage() {
     if (locItems.length === 0) return;
     const dias = calcDiasLocacao();
     setLocItems(prev => prev.map(it => {
-      // Re-calcula dependendo do tipo (item diário vs kit valor fixo)
-      // Como não guardamos o tipo do item na array, mas kits têm kit_id e itens têm item_id:
       if (it.item_id) {
         return { ...it, subtotal: it.preco_unitario * it.quantidade * dias };
       } else {
-        // Kit é preço fixo por locação (não multiplica por dias na UI atual, ou multiplica? No código anterior era preco*qtd para kit)
         return { ...it, subtotal: it.preco_unitario * it.quantidade };
       }
     }));
@@ -291,9 +286,9 @@ export default function LocacoesPage() {
 
   const locTotals = useMemo(() => {
     const subtotal = locItems.reduce((s, i) => s + (i.subtotal || 0), 0);
-    const descVal = Number(desconto) || 0;
-    const total = Math.max(0, subtotal - descVal);
-    return { subtotal, total };
+    const descVal = parseInputNumber(desconto) || 0;
+    const totalVal = Math.max(0, subtotal - descVal);
+    return { subtotal, totalVal };
   }, [locItems, desconto]);
 
   return (
@@ -479,7 +474,7 @@ export default function LocacoesPage() {
 
             <div>
               <label className="text-xs font-medium text-muted-foreground">Desconto (R$)</label>
-              <Input type="number" value={desconto} min={0} step={0.01} onChange={(e) => setDesconto(Number(e.target.value))} />
+              <Input type="text" value={desconto} onChange={(e) => setDesconto(e.target.value)} />
             </div>
 
             <div className="sm:col-span-2">
@@ -506,7 +501,7 @@ export default function LocacoesPage() {
                       const id = (v === "none" || !v) ? "" : Number(v);
                       setSelId(id);
                       const item = (itensLocQ.data || []).find((x: any) => x.id === id);
-                      setSelPreco(Number(item?.preco_diaria || 0));
+                      setSelPreco(String(item?.preco_diaria || 0));
                     }}
                   >
                     <SelectTrigger>
@@ -524,11 +519,11 @@ export default function LocacoesPage() {
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">Quantidade</label>
-                  <Input type="number" min={1} step={1} value={selQtd} onChange={(e) => setSelQtd(Math.max(1, Math.trunc(Number(e.target.value))))} />
+                  <Input type="text" value={selQtd} onChange={(e) => setSelQtd(e.target.value)} />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">Preço unit.</label>
-                  <Input type="number" min={0} step={0.01} value={selPreco} onChange={(e) => setSelPreco(Number(e.target.value))} />
+                  <label className="text-xs font-medium text-muted-foreground">Preço (R$)</label>
+                  <Input type="text" value={selPreco} onChange={(e) => setSelPreco(e.target.value)} />
                 </div>
               </div>
             ) : (
@@ -541,7 +536,7 @@ export default function LocacoesPage() {
                       const id = (v === "none" || !v) ? "" : Number(v);
                       setSelId(id);
                       const kit = (kitsQ.data || []).find((x: any) => x.id === id);
-                      setSelPreco(Number(kit?.preco_total || 0));
+                      setSelPreco(String(kit?.preco_total || 0));
                     }}
                   >
                     <SelectTrigger>
@@ -559,11 +554,11 @@ export default function LocacoesPage() {
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">Quantidade</label>
-                  <Input type="number" min={1} value={selQtd} step={1} onChange={(e) => setSelQtd(Number(e.target.value))} />
+                  <Input type="text" value={selQtd} onChange={(e) => setSelQtd(e.target.value)} />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">Preço unit.</label>
-                  <Input type="number" min={0} step={0.01} value={selPreco} onChange={(e) => setSelPreco(Number(e.target.value))} />
+                  <label className="text-xs font-medium text-muted-foreground">Preço (R$)</label>
+                  <Input type="text" value={selPreco} onChange={(e) => setSelPreco(e.target.value)} />
                 </div>
               </div>
             )}
@@ -605,8 +600,7 @@ export default function LocacoesPage() {
               <div className="flex items-center gap-2 max-w-[150px]">
                 <span className="text-muted-foreground">R$</span>
                 <Input
-                  type="number"
-                  step="0.01"
+                  type="text"
                   className="h-8 w-24 text-right"
                   value={valorEntrada}
                   onChange={(e) => setValorEntrada(e.target.value)}
@@ -616,7 +610,7 @@ export default function LocacoesPage() {
 
             <div className="mt-2 flex items-center justify-between text-base font-bold border-t border-border/50 pt-2">
               <span>Restante a Pagar</span>
-              <span>{brl(locTotals.total - (Number(valorEntrada) || 0))}</span>
+              <span className="text-primary">{brl(locTotals.totalVal - parseInputNumber(valorEntrada))}</span>
             </div>
           </div>
 

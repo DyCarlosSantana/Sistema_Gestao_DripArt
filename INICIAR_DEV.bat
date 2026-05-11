@@ -61,6 +61,17 @@ if errorlevel 1 (
     echo  [OK] Dependencias verificadas
 )
 
+:: ─── Build do Frontend ────────────────────────────
+echo  [..] Compilando o frontend (npm run build)...
+cd decor-venue-flow-main
+call npm run build >nul 2>&1
+if errorlevel 1 (
+    echo  [AVISO] Falha no build do frontend. Usando versao anterior.
+) else (
+    echo  [OK] Frontend compilado com sucesso!
+)
+cd ..
+
 :: ─── Iniciar Sistema ────────────────────────────
 echo.
 echo  ──────────────────────────────────────────────

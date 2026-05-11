@@ -54,6 +54,10 @@ const FAQ = () => {
     {
       question: "Meus dados estão seguros no sistema?",
       answer: "A segurança é nossa prioridade. Utilizamos criptografia de ponta a ponta e backups diários para garantir que todas as informações da sua empresa estejam protegidas e acessíveis apenas por você."
+    },
+    {
+      question: "O sistema funciona em qualquer dispositivo?",
+      answer: "Sim. O Dycore é 100% responsivo e roda em qualquer navegador — desktop, tablet ou smartphone. Você pode gerenciar sua empresa de onde estiver, sem precisar instalar nenhum aplicativo."
     }
   ];
 
@@ -63,7 +67,7 @@ const FAQ = () => {
         <div className="mb-20">
           <p className="text-dycore-pink font-black uppercase tracking-[0.4em] text-[10px] mb-6 text-center">Tire suas Dúvidas</p>
           <h2 className="text-5xl md:text-7xl font-display font-black text-[#0f172a] tracking-tighter leading-[0.85] text-center">
-            Your Questions <br /> Answered.
+            Perguntas <br /> Frequentes.
           </h2>
         </div>
 

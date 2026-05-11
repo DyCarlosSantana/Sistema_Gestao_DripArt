@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function FiadoPage() {
@@ -56,7 +56,7 @@ export default function FiadoPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Fiado</h1>
+          <h1 className="font-display text-2xl font-bold text-foreground">Contas a Receber</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             Contas a receber e pendências de clientes
           </p>
@@ -65,7 +65,7 @@ export default function FiadoPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         <div className="rounded-2xl border border-border bg-card p-4 shadow-subtle">
-          <div className="text-xs font-medium text-muted-foreground">Total Fiado (Aberto)</div>
+          <div className="text-xs font-medium text-muted-foreground">Total a Receber (Aberto)</div>
           <div className="mt-1 text-2xl font-bold text-foreground">
             {metrics ? brl(metrics.fiado_total_valor) : "..."}
           </div>
@@ -74,7 +74,7 @@ export default function FiadoPage() {
           </div>
         </div>
         <div className="rounded-2xl border border-warning/20 bg-warning-light p-4 shadow-subtle">
-          <div className="text-xs font-medium text-warning">Fiado Atrasado</div>
+          <div className="text-xs font-medium text-warning">Atrasados</div>
           <div className="mt-1 text-2xl font-bold text-warning">
             {metrics ? brl(metrics.fiado_atrasado_valor) : "..."}
           </div>
@@ -151,7 +151,8 @@ export default function FiadoPage() {
       <Dialog open={payModal.open} onOpenChange={(v) => { if (!v) setPayModal({ open: false, id: null }) }}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle>Receber Fiado</DialogTitle>
+            <DialogTitle>Receber Valor</DialogTitle>
+            <DialogDescription>Confirme o recebimento deste valor pendente.</DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div>

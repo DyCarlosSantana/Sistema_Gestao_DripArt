@@ -40,9 +40,14 @@ export interface NavGroup {
 
 export const navigation: NavGroup[] = [
   {
-    label: "Dashboard",
+    label: "Início",
     icon: LayoutDashboard,
     path: "/",
+  },
+  {
+    label: "Dashboard",
+    icon: TrendingUp,
+    path: "/dashboard",
     modulo: "dashboard",
   },
   {
@@ -67,7 +72,7 @@ export const navigation: NavGroup[] = [
     icon: Users,
     children: [
       { title: "Clientes", path: "/clientes", modulo: "clientes" },
-      { title: "Produtos", path: "/produtos", modulo: "produtos" },
+      { title: "Mercadorias", path: "/produtos", modulo: "produtos" },
       { title: "Serviços", path: "/servicos", modulo: "servicos" },
     ],
   },
@@ -77,7 +82,7 @@ export const navigation: NavGroup[] = [
     children: [
       { title: "Despesas", path: "/despesas", modulo: "despesas", minRole: "gerente" },
       { title: "Fluxo de Caixa", path: "/fluxo", modulo: "fluxo_caixa", minRole: "gerente" },
-      { title: "Fiado", path: "/fiado", modulo: "fiado" },
+      { title: "Contas a Receber", path: "/fiado", modulo: "fiado" },
     ],
   },
   {

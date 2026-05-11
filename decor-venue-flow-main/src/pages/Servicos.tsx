@@ -1,10 +1,20 @@
 import { useState } from "react";
+import { usePagination } from "@/hooks/use-pagination";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { brl } from "@/lib/format";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import {
   Dialog,
   DialogContent,
@@ -21,13 +31,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Edit2, Plus, Trash2 } from "lucide-react";
 
@@ -105,6 +115,7 @@ export default function ServicosPage() {
   }
 
   const rows = servicosQ.data || [];
+  const { currentData, currentPage, maxPage, next, prev, jump } = usePagination(rows, 12);
 
   return (
     <div className="space-y-6">
@@ -132,76 +143,80 @@ export default function ServicosPage() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card shadow-subtle overflow-hidden">
-        <Table>
-          <TableHeader className="bg-muted/50">
-            <TableRow>
-              <TableHead>Serviço</TableHead>
-              <TableHead>Categoria</TableHead>
-              <TableHead>Tipo de Cobrança</TableHead>
-              <TableHead>Preço Base</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {servicosQ.isLoading && (
-              <TableRow>
-                <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
-                  Carregando serviços…
-                </TableCell>
-              </TableRow>
-            )}
-            {!servicosQ.isLoading && rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
-                  Nenhum serviço cadastrado ainda.
-                </TableCell>
-              </TableRow>
-            )}
-            {rows.map((s: any) => (
-              <TableRow key={s.id} className="group">
-                <TableCell>
-                  <div className="font-medium text-foreground">{s.nome}</div>
-                  {s.descricao && <div className="text-xs text-muted-foreground max-w-sm truncate">{s.descricao}</div>}
-                </TableCell>
-                <TableCell>
-                  {s.categoria ? (
-                    <Badge variant="outline">{s.categoria}</Badge>
-                  ) : (
-                    <span className="text-muted-foreground text-sm">-</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={s.tipo_preco === "fixo" ? "secondary" : "outline"} className="capitalize">
-                    {s.tipo_preco === "fixo" ? "Preço Fixo" : "Variável/Hora"}
-                  </Badge>
-                </TableCell>
-                <TableCell className="font-medium text-foreground">
-                  {s.preco > 0 ? brl(s.preco) : <span className="text-muted-foreground text-sm">A Combinar</span>}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="inline-flex justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-primary" onClick={() => abrirEditar(s)}>
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-destructive"
-                      onClick={() => {
-                        if (confirm(`Deseja inativar o serviço ${s.nome}?`)) excluirM.mutate(s.id);
-                      }}
-                      disabled={excluirM.isPending}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {servicosQ.isLoading && (
+          <div className="col-span-full py-10 text-center text-muted-foreground">
+            Carregando serviços…
+          </div>
+        )}
+        {!servicosQ.isLoading && rows.length === 0 && (
+          <div className="col-span-full py-10 text-center text-muted-foreground">
+            Nenhum serviço cadastrado ainda.
+          </div>
+        )}
+        {currentData.map((s: any) => (
+          <Card key={s.id} className="flex flex-col shadow-subtle hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle className="text-lg">{s.nome}</CardTitle>
+                  <CardDescription className="text-xs mt-1">
+                    {s.categoria ? <Badge variant="outline">{s.categoria}</Badge> : <span className="text-muted-foreground">Sem categoria</span>}
+                  </CardDescription>
+                </div>
+                <Badge variant={s.tipo_preco === "fixo" ? "secondary" : "outline"} className="capitalize">
+                  {s.tipo_preco === "fixo" ? "Fixo" : "Variável/Hora"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="flex-1 space-y-2 text-sm">
+              <div className="text-muted-foreground text-sm line-clamp-2 min-h-[40px]">
+                {s.descricao || "Sem descrição"}
+              </div>
+              <div className="mt-4">
+                <span className="text-xs text-muted-foreground block mb-1">Preço Base</span>
+                <span className="font-medium text-foreground text-lg">
+                  {s.preco > 0 ? brl(s.preco) : "A Combinar"}
+                </span>
+              </div>
+            </CardContent>
+            <CardFooter className="pt-3 border-t bg-muted/20 flex justify-end gap-2">
+              <Button size="icon" variant="ghost" className="h-8 w-8 text-primary" onClick={() => abrirEditar(s)}>
+                <Edit2 className="h-4 w-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => {
+                  if (confirm(`Deseja inativar o serviço ${s.nome}?`)) excluirM.mutate(s.id);
+                }}
+                disabled={excluirM.isPending}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </CardFooter>
+          </Card>
+        ))}
       </div>
+
+      {maxPage > 1 && (
+        <Pagination className="mt-8">
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious onClick={prev} className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationLink className="font-medium">
+                Página {currentPage} de {maxPage}
+              </PaginationLink>
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationNext onClick={next} className={currentPage === maxPage ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      )}
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="sm:max-w-[500px]">
@@ -248,11 +263,10 @@ export default function ServicosPage() {
 
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Preço (R$)</label>
-                <Input
-                  type="number"
-                  step={0.01}
+                <CurrencyInput
                   value={preco}
-                  onChange={(e) => setPreco(Number(e.target.value))}
+                  onChange={(v) => setPreco(v)}
+                  placeholder="0,00"
                 />
               </div>
             </div>

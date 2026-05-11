@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/AppLayout";
+import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
 import ClientesPage from "@/pages/Clientes";
 import ProdutosPage from "@/pages/Produtos";
@@ -59,7 +60,8 @@ const AppRoutes = () => {
         <ProtectedRoute>
           <AppLayout>
             <Routes>
-              <Route path="/" element={<ProtectedRoute requirePermission="dashboard_view"><Dashboard /></ProtectedRoute>} />
+              <Route path="/" element={<Home />} />
+              <Route path="/dashboard" element={<ProtectedRoute requirePermission="dashboard_view"><Dashboard /></ProtectedRoute>} />
               <Route path="/pdv" element={<ProtectedRoute requirePermission="vendas_view"><PDVPage /></ProtectedRoute>} />
               <Route path="/locacoes" element={<ProtectedRoute requirePermission="locacoes_view"><LocacoesPage /></ProtectedRoute>} />
               <Route path="/orcamentos" element={<ProtectedRoute requirePermission="vendas_view"><OrcamentosPage /></ProtectedRoute>} />

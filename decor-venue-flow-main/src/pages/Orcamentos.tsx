@@ -5,6 +5,7 @@ import { Info } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, API_BASE_URL, type OrcamentoRow } from "@/lib/api";
 import { brl, fmtDate } from "@/lib/format";
+import { parseInputNumber } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -63,13 +64,13 @@ export default function OrcamentosPage() {
 
   const [clienteNome, setClienteNome] = useState("");
   const [obs, setObs] = useState("");
-  const [desconto, setDesconto] = useState<number | string>("");
-  const [valorEntrada, setValorEntrada] = useState<number | string>("");
+  const [desconto, setDesconto] = useState<string>("");
+  const [valorEntrada, setValorEntrada] = useState<string>("");
   const navigate = useNavigate();
 
   const [itDesc, setItDesc] = useState("");
-  const [itQtd, setItQtd] = useState<number>(1);
-  const [itPreco, setItPreco] = useState<number>(0);
+  const [itQtd, setItQtd] = useState<string>("1");
+  const [itPreco, setItPreco] = useState<string>("");
   const [tipo, setTipo] = useState("produto");
   const [items, setItems] = useState<Array<{ descricao: string; quantidade: number; preco_unitario: number; subtotal: number }>>([]);
 
@@ -140,7 +141,7 @@ export default function OrcamentosPage() {
 
   const calcTotals = useMemo(() => {
     const subtotal = items.reduce((s, i) => s + (i.subtotal || 0), 0);
-    const descVal = Number(desconto) || 0;
+    const descVal = parseInputNumber(desconto);
     const totalVal = Math.max(0, subtotal - descVal);
     return { subtotal, totalVal };
   }, [items, desconto]);
@@ -152,8 +153,8 @@ export default function OrcamentosPage() {
     setDesconto("");
     setValorEntrada("");
     setItDesc("");
-    setItQtd(1);
-    setItPreco(0);
+    setItQtd("1");
+    setItPreco("");
     setItems([]);
   }
 
@@ -166,8 +167,8 @@ export default function OrcamentosPage() {
     setEditId(o.id);
     setClienteNome(o.cliente_nome || "");
     setObs((o as any).obs || "");
-    setDesconto(Number((o as any).desconto || 0));
-    setValorEntrada(Number((o as any).valor_entrada || 0));
+    setDesconto(String((o as any).desconto || ""));
+    setValorEntrada(String((o as any).valor_entrada || ""));
 
     try {
       const itens = await api.orcamentoItens(o.id);
@@ -188,8 +189,8 @@ export default function OrcamentosPage() {
 
   function adicionarItem() {
     const desc = itDesc.trim();
-    const qtd = Number(itQtd);
-    const preco = Number(itPreco);
+    const qtd = parseInputNumber(itQtd);
+    const preco = parseInputNumber(itPreco);
     if (!desc) return toast.error("Informe a descrição do item");
     if (!Number.isFinite(qtd) || qtd <= 0) return toast.error("Quantidade inválida");
     if (!Number.isFinite(preco) || preco < 0) return toast.error("Valor inválido");
@@ -197,8 +198,8 @@ export default function OrcamentosPage() {
     const subtotal = qtd * preco;
     setItems((prev) => [...prev, { descricao: desc, quantidade: qtd, preco_unitario: preco, subtotal }]);
     setItDesc("");
-    setItQtd(1);
-    setItPreco(0);
+    setItQtd("1");
+    setItPreco("");
   }
 
   function removerItem(idx: number) {
@@ -211,9 +212,9 @@ export default function OrcamentosPage() {
       const payload = {
         cliente_nome: clienteNome.trim(),
         subtotal: calcTotals.subtotal,
-        desconto: Number(desconto) || 0,
+        desconto: parseInputNumber(desconto),
         total: calcTotals.totalVal,
-        valor_entrada: Number(valorEntrada) || 0,
+        valor_entrada: parseInputNumber(valorEntrada),
         obs,
         itens: items,
       };
@@ -412,25 +413,25 @@ export default function OrcamentosPage() {
             </div>
             <div className="sm:col-span-2 rounded-2xl border border-border bg-card p-4">
               <div className="text-sm font-semibold">Itens do orçamento</div>
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="sm:col-span-3">
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-4">
+                <div className="sm:col-span-4">
                   <div className="mb-2 flex flex-wrap gap-4 text-xs font-medium text-muted-foreground">
-                    <label className="flex items-center gap-1 cursor-pointer"><input type="radio" value="produto" checked={tipo === "produto"} onChange={() => { setTipo("produto"); setItDesc(""); setItPreco(0); }} /> Produto</label>
-                    <label className="flex items-center gap-1 cursor-pointer"><input type="radio" value="servico" checked={tipo === "servico"} onChange={() => { setTipo("servico"); setItDesc(""); setItPreco(0); }} /> Serviço</label>
-                    <label className="flex items-center gap-1 cursor-pointer"><input type="radio" value="locacao_item" checked={tipo === "locacao_item"} onChange={() => { setTipo("locacao_item"); setItDesc(""); setItPreco(0); }} /> Item (Aluguel)</label>
-                    <label className="flex items-center gap-1 cursor-pointer"><input type="radio" value="locacao_kit" checked={tipo === "locacao_kit"} onChange={() => { setTipo("locacao_kit"); setItDesc(""); setItPreco(0); }} /> Kit (Aluguel)</label>
-                    <label className="flex items-center gap-1 cursor-pointer"><input type="radio" value="diverso" checked={tipo === "diverso"} onChange={() => { setTipo("diverso"); setItDesc(""); setItPreco(0); }} /> Diverso</label>
+                    <label className="flex items-center gap-1 cursor-pointer"><input type="radio" value="produto" checked={tipo === "produto"} onChange={() => { setTipo("produto"); setItDesc(""); setItPreco(""); }} /> Produto</label>
+                    <label className="flex items-center gap-1 cursor-pointer"><input type="radio" value="servico" checked={tipo === "servico"} onChange={() => { setTipo("servico"); setItDesc(""); setItPreco(""); }} /> Serviço</label>
+                    <label className="flex items-center gap-1 cursor-pointer"><input type="radio" value="locacao_item" checked={tipo === "locacao_item"} onChange={() => { setTipo("locacao_item"); setItDesc(""); setItPreco(""); }} /> Item (Aluguel)</label>
+                    <label className="flex items-center gap-1 cursor-pointer"><input type="radio" value="locacao_kit" checked={tipo === "locacao_kit"} onChange={() => { setTipo("locacao_kit"); setItDesc(""); setItPreco(""); }} /> Kit (Aluguel)</label>
+                    <label className="flex items-center gap-1 cursor-pointer"><input type="radio" value="diverso" checked={tipo === "diverso"} onChange={() => { setTipo("diverso"); setItDesc(""); setItPreco(""); }} /> Diverso</label>
                   </div>
                 </div>
 
-                <div className="sm:col-span-1">
+                <div className="sm:col-span-2">
                   {tipo === "produto" ? (
                     <>
                       <label className="text-xs font-medium text-muted-foreground">Produto *</label>
                       <Select value={itDesc} onValueChange={(v) => {
                         setItDesc(v);
                         const p = (produtosQ.data || []).find((x: any) => x.nome === v);
-                        if (p) { setItPreco(Number(p.preco_venda || 0)); }
+                        if (p) { setItPreco(String(p.preco_venda || 0)); }
                       }}>
                         <SelectTrigger><SelectValue placeholder="Selecione o produto..." /></SelectTrigger>
                         <SelectContent>
@@ -446,7 +447,7 @@ export default function OrcamentosPage() {
                       <Select value={itDesc} onValueChange={(v) => {
                         setItDesc(v);
                         const s = (servicosQ.data || []).find((x: any) => x.nome === v);
-                        if (s) { setItPreco(Number(s.preco || 0)); }
+                        if (s) { setItPreco(String(s.preco || 0)); }
                       }}>
                         <SelectTrigger><SelectValue placeholder="Selecione o serviço..." /></SelectTrigger>
                         <SelectContent>
@@ -462,7 +463,7 @@ export default function OrcamentosPage() {
                       <Select value={itDesc} onValueChange={(v) => {
                         setItDesc(v);
                         const i = (itensLocQ.data || []).find((x: any) => x.nome === v);
-                        if (i) { setItPreco(Number(i.preco_diaria || 0)); }
+                        if (i) { setItPreco(String(i.preco_diaria || 0)); }
                       }}>
                         <SelectTrigger><SelectValue placeholder="Selecione o item..." /></SelectTrigger>
                         <SelectContent>
@@ -478,7 +479,7 @@ export default function OrcamentosPage() {
                       <Select value={itDesc} onValueChange={(v) => {
                         setItDesc(v);
                         const k = (kitsQ.data || []).find((x: any) => x.nome === v);
-                        if (k) { setItPreco(Number(k.preco_total || 0)); }
+                        if (k) { setItPreco(String(k.preco_total || 0)); }
                       }}>
                         <SelectTrigger><SelectValue placeholder="Selecione o kit..." /></SelectTrigger>
                         <SelectContent>
@@ -496,12 +497,12 @@ export default function OrcamentosPage() {
                   )}
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">Qtd</label>
-                  <Input type="number" value={itQtd} step={1} min={1} onChange={(e) => setItQtd(Number(e.target.value))} />
+                  <label className="text-xs font-medium text-muted-foreground">Qtd *</label>
+                  <Input type="text" value={itQtd} onChange={(e) => setItQtd(e.target.value)} />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">Valor unit.</label>
-                  <Input type="number" value={itPreco} step={0.01} min={0} onChange={(e) => setItPreco(Number(e.target.value))} />
+                  <label className="text-xs font-medium text-muted-foreground">Valor un. *</label>
+                  <Input type="text" value={itPreco} onChange={(e) => setItPreco(e.target.value)} />
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -538,27 +539,26 @@ export default function OrcamentosPage() {
               <div className="mt-2 flex items-center justify-between gap-3 text-sm">
                 <span className="text-muted-foreground">Desconto (R$)</span>
                 <Input
-                  type="number"
+                  type="text"
                   value={desconto}
-                  step={0.01}
-                  min={0}
-                  onChange={(e) => setDesconto(Number(e.target.value))}
+                  onChange={(e) => setDesconto(e.target.value)}
+                  className="text-right max-w-[120px]"
                 />
               </div>
 
               <div className="flex justify-between items-center text-sm mt-3">
                 <span className="text-muted-foreground">Sinal / Entrada (R$)</span>
                 <Input
-                  type="number"
-                  step="0.01"
+                  type="text"
                   value={valorEntrada}
                   onChange={(e) => setValorEntrada(e.target.value)}
+                  className="text-right max-w-[120px]"
                 />
               </div>
 
               <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between text-base font-bold">
                 <span>Restante a Pagar</span>
-                <span className="text-primary">{brl(calcTotals.totalVal - (Number(valorEntrada) || 0))}</span>
+                <span className="text-primary">{brl(calcTotals.totalVal - parseInputNumber(valorEntrada))}</span>
               </div>
             </div>
 

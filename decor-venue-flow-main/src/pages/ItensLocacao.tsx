@@ -1,4 +1,13 @@
 import { useMemo, useState } from "react";
+import { usePagination } from "@/hooks/use-pagination";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type VendaRow } from "@/lib/api";
 import { brl } from "@/lib/format";
@@ -6,6 +15,7 @@ import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput, NumberInput } from "@/components/ui/currency-input";
 import {
   Dialog,
   DialogContent,
@@ -22,13 +32,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Edit2, Package, Trash2, Box } from "lucide-react";
 
 type ItemLocRow = {
   id: number;
@@ -65,6 +76,9 @@ export default function ItensLocacaoPage() {
     if (!ql) return all;
     return all.filter((k) => (k.nome || "").toLowerCase().includes(ql));
   }, [kitsQ.data, qKits]);
+
+  const pItens = usePagination(filteredItens, 8);
+  const pKits = usePagination(filteredKits, 8);
 
   // -------- Item modal --------
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -230,59 +244,76 @@ export default function ItensLocacaoPage() {
             <Input placeholder="Buscar item…" value={qItens} onChange={(e) => setQItens(e.target.value)} className="w-[260px]" />
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead>Preço/diária</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(itensQ.isLoading ? [] : filteredItens).map((it) => (
-                <TableRow key={it.id}>
-                  <TableCell className="font-medium text-foreground">{it.nome}</TableCell>
-                  <TableCell>
-                    {it.categoria ? (
-                      <Badge variant="secondary" className="bg-secondary text-muted-foreground">
-                        {it.categoria}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{brl(it.preco_diaria || 0)}</TableCell>
-                  <TableCell className="text-muted-foreground text-right">{it.quantidade_total || 0}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="inline-flex flex-wrap justify-end gap-2">
-                      <Button size="sm" variant="outline" onClick={() => abrirEditarItem(it)}>
-                        Editar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => {
-                          if (confirm("Excluir este item?")) excluirItemM.mutate(it.id);
-                        }}
-                        disabled={excluirItemM.isPending}
-                      >
-                        Excluir
-                      </Button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {itensQ.isLoading && (
+              <div className="col-span-full py-10 text-center text-muted-foreground">
+                Carregando itens…
+              </div>
+            )}
+            {!itensQ.isLoading && filteredItens.length === 0 ? (
+              <div className="col-span-full py-10 text-center text-muted-foreground">
+                Nenhum item encontrado
+              </div>
+            ) : null}
+            {pItens.currentData.map((it) => (
+              <Card key={it.id} className="flex flex-col shadow-subtle hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-base">{it.nome}</CardTitle>
+                      <CardDescription className="text-xs mt-1">
+                        {it.categoria ? <Badge variant="secondary" className="bg-secondary text-muted-foreground">{it.categoria}</Badge> : "Sem categoria"}
+                      </CardDescription>
                     </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {!itensQ.isLoading && filteredItens.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
-                    Nenhum item encontrado
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 space-y-2 text-sm pb-2">
+                  <div className="flex justify-between items-center text-muted-foreground">
+                    <span className="text-xs">Diária</span>
+                    <span className="font-medium text-foreground">{brl(it.preco_diaria || 0)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-muted-foreground">
+                    <span className="text-xs">Qtd Total</span>
+                    <span className="font-medium text-foreground">{it.quantidade_total || 0}</span>
+                  </div>
+                </CardContent>
+                <CardFooter className="pt-2 border-t flex justify-end gap-1">
+                  <Button size="icon" variant="ghost" className="h-8 w-8 text-primary" onClick={() => abrirEditarItem(it)}>
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => {
+                      if (confirm("Excluir este item?")) excluirItemM.mutate(it.id);
+                    }}
+                    disabled={excluirItemM.isPending}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+
+          {pItens.maxPage > 1 && (
+            <Pagination className="mt-4">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious onClick={pItens.prev} className={pItens.currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationLink className="font-medium">
+                    {pItens.currentPage} / {pItens.maxPage}
+                  </PaginationLink>
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext onClick={pItens.next} className={pItens.currentPage === pItens.maxPage ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-4">
@@ -290,56 +321,80 @@ export default function ItensLocacaoPage() {
             <div className="text-sm font-semibold mb-3">Kits</div>
             <Input placeholder="Buscar kit…" value={qKits} onChange={(e) => setQKits(e.target.value)} className="w-[260px]" />
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Preço total</TableHead>
-                <TableHead>Itens do kit</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(kitsQ.isLoading ? [] : filteredKits)?.map((k: KitRow) => (
-                <TableRow key={k.id}>
-                  <TableCell className="font-medium text-foreground">{k.nome}</TableCell>
-                  <TableCell className="text-muted-foreground">{brl(k.preco_total || 0)}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {(k.itens || []).map((i, idx) => (
-                      <span key={idx} className="mr-2">
-                        {i.quantidade}x {i.nome}
-                      </span>
-                    ))}
-                    {(k.itens || []).length === 0 ? "—" : null}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="inline-flex flex-wrap justify-end gap-2">
-                      <Button size="sm" variant="outline" onClick={() => abrirEditarKit(k)}>
-                        Editar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => {
-                          if (confirm("Excluir este kit?")) excluirKitM.mutate(k.id);
-                        }}
-                        disabled={excluirKitM.isPending}
-                      >
-                        Excluir
-                      </Button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {kitsQ.isLoading && (
+              <div className="col-span-full py-10 text-center text-muted-foreground">
+                Carregando kits…
+              </div>
+            )}
+            {!kitsQ.isLoading && filteredKits.length === 0 ? (
+              <div className="col-span-full py-10 text-center text-muted-foreground">
+                Nenhum kit cadastrado
+              </div>
+            ) : null}
+            {pKits.currentData.map((k: KitRow) => (
+              <Card key={k.id} className="flex flex-col shadow-subtle hover:shadow-md transition-shadow bg-muted/10">
+                <CardHeader className="pb-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-base flex items-center"><Box className="w-4 h-4 mr-2 text-primary" /> {k.nome}</CardTitle>
                     </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {!kitsQ.isLoading && filteredKits.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">
-                    Nenhum kit cadastrado
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 space-y-3 text-sm pb-2">
+                  <div className="flex justify-between items-center text-muted-foreground">
+                    <span className="text-xs">Preço Total</span>
+                    <span className="font-medium text-foreground">{brl(k.preco_total || 0)}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs block text-muted-foreground mb-1">Itens inclusos</span>
+                    <div className="text-xs flex flex-wrap gap-1">
+                      {(k.itens || []).map((i, idx) => (
+                        <Badge key={idx} variant="outline" className="text-muted-foreground bg-card">
+                          {i.quantidade}x {i.nome}
+                        </Badge>
+                      ))}
+                      {(k.itens || []).length === 0 ? <span className="text-muted-foreground">—</span> : null}
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="pt-2 border-t flex justify-end gap-1">
+                  <Button size="icon" variant="ghost" className="h-8 w-8 text-primary" onClick={() => abrirEditarKit(k)}>
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => {
+                      if (confirm("Excluir este kit?")) excluirKitM.mutate(k.id);
+                    }}
+                    disabled={excluirKitM.isPending}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+
+          {pKits.maxPage > 1 && (
+            <Pagination className="mt-4">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious onClick={pKits.prev} className={pKits.currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationLink className="font-medium">
+                    {pKits.currentPage} / {pKits.maxPage}
+                  </PaginationLink>
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext onClick={pKits.next} className={pKits.currentPage === pKits.maxPage ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </div>
       </div>
 
@@ -362,11 +417,11 @@ export default function ItensLocacaoPage() {
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground">Preço/diária *</label>
-              <Input type="number" step={0.01} value={ilPreco} onChange={(e) => setIlPreco(Number(e.target.value))} />
+              <CurrencyInput value={ilPreco} onChange={(v) => setIlPreco(v)} placeholder="0,00" />
             </div>
             <div className="sm:col-span-1">
               <label className="text-xs font-medium text-muted-foreground">Quantidade total</label>
-              <Input type="number" step={1} min={1} value={ilQtdTotal} onChange={(e) => setIlQtdTotal(Math.trunc(Number(e.target.value)))} />
+              <NumberInput integer value={ilQtdTotal} onChange={(v) => setIlQtdTotal(Math.trunc(v))} placeholder="1" />
             </div>
           </div>
 
@@ -396,7 +451,7 @@ export default function ItensLocacaoPage() {
             </div>
             <div className="sm:col-span-2">
               <label className="text-xs font-medium text-muted-foreground">Preço total do kit *</label>
-              <Input type="number" step={0.01} value={kitPreco} onChange={(e) => setKitPreco(Number(e.target.value))} />
+              <CurrencyInput value={kitPreco} onChange={(v) => setKitPreco(v)} placeholder="0,00" />
             </div>
 
             <div className="sm:col-span-2 rounded-2xl border border-border bg-card p-4">
@@ -424,7 +479,7 @@ export default function ItensLocacaoPage() {
                 </div>
                 <div className="w-[140px]">
                   <label className="text-xs font-medium text-muted-foreground">Qtd</label>
-                  <Input type="number" step={1} min={1} value={kitSelQtd} onChange={(e) => setKitSelQtd(Math.trunc(Number(e.target.value)))} />
+                  <NumberInput integer value={kitSelQtd} onChange={(v) => setKitSelQtd(Math.trunc(v))} placeholder="1" />
                 </div>
                 <Button type="button" size="sm" variant="secondary" onClick={adicionarItemAoKit}>
                   + Adicionar

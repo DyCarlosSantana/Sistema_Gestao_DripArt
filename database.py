@@ -246,6 +246,18 @@ CREATE TABLE IF NOT EXISTS produtos (
     ativo INTEGER DEFAULT 1
 );
 
+CREATE TABLE IF NOT EXISTS fornecedores (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    empresa_id INTEGER DEFAULT 1,
+    nome TEXT NOT NULL,
+    telefone TEXT,
+    email TEXT,
+    cnpj TEXT,
+    endereco TEXT,
+    obs TEXT,
+    ativo INTEGER DEFAULT 1
+);
+
 CREATE TABLE IF NOT EXISTS cargos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     empresa_id INTEGER DEFAULT 1,

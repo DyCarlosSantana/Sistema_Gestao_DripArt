@@ -652,20 +652,31 @@ def dashboard():
     db = get_db()
     hoje = (datetime.datetime.utcnow() - datetime.timedelta(hours=3)).date().isoformat()
     amanha = (datetime.datetime.utcnow() - datetime.timedelta(hours=3) + datetime.timedelta(days=1)).date().isoformat()
-    mes_atual = hoje[:7]
-    mes_inicio = mes_atual + "-01"
-    prox_mes = ((datetime.datetime.utcnow() - datetime.timedelta(hours=3)).date().replace(day=28) + datetime.timedelta(days=4)).replace(day=1).isoformat()
+    tres_dias = ((datetime.datetime.utcnow() - datetime.timedelta(hours=3)).date() + datetime.timedelta(days=3)).isoformat()
+    sete_dias = ((datetime.datetime.utcnow() - datetime.timedelta(hours=3)).date() + datetime.timedelta(days=7)).isoformat()
+
+    data_ini = request.args.get('data_ini')
+    data_fim = request.args.get('data_fim')
+    
+    if data_ini and data_fim:
+        periodo_ini = data_ini
+        periodo_fim = (datetime.datetime.strptime(data_fim, "%Y-%m-%d") + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    else:
+        mes_atual = hoje[:7]
+        periodo_ini = mes_atual + "-01"
+        periodo_fim = ((datetime.datetime.utcnow() - datetime.timedelta(hours=3)).date().replace(day=28) + datetime.timedelta(days=4)).replace(day=1).isoformat()
+
     tres_dias = ((datetime.datetime.utcnow() - datetime.timedelta(hours=3)).date() + datetime.timedelta(days=3)).isoformat()
     sete_dias = ((datetime.datetime.utcnow() - datetime.timedelta(hours=3)).date() + datetime.timedelta(days=7)).isoformat()
 
     receita_mes = db.execute(
-        "SELECT COALESCE(SUM(total),0) as v FROM vendas WHERE criado_em >= ? AND criado_em < ? AND (status='pago' OR status='Pago' OR status='fiado') AND empresa_id=?",
-        (mes_inicio, prox_mes, eid)
+        "SELECT COALESCE(SUM(total),0) as v FROM vendas WHERE criado_em >= ? AND criado_em < ? AND (status='pago' OR status='Pago') AND empresa_id=?",
+        (periodo_ini, periodo_fim, eid)
     ).fetchone()['v']
 
     vendas_hoje = db.execute(
-        "SELECT COUNT(*) as c, COALESCE(SUM(total),0) as v FROM vendas WHERE criado_em >= ? AND criado_em < ? AND (status='pago' OR status='Pago' OR status='fiado') AND empresa_id=?",
-        (hoje, amanha, eid)
+        "SELECT COUNT(*) as c, COALESCE(SUM(total),0) as v FROM vendas WHERE criado_em >= ? AND criado_em < ? AND (status='pago' OR status='Pago') AND empresa_id=?",
+        (periodo_ini, periodo_fim, eid)
     ).fetchone()
 
     locacoes_ativas = db.execute(
@@ -686,7 +697,7 @@ def dashboard():
         FROM vendas
         WHERE criado_em >= ? AND criado_em < ? AND (status='pago' OR status='Pago' OR status='fiado') AND empresa_id=?
         GROUP BY tipo
-    """, (mes_inicio, prox_mes, eid)).fetchall()
+    """, (periodo_ini, periodo_fim, eid)).fetchall()
 
     ultimas_movs = db.execute("""
         SELECT 'venda' as origem, id, cliente_nome, tipo as descricao, total, status, criado_em
@@ -725,7 +736,7 @@ def dashboard():
 
     mes_saidas = db.execute(
         "SELECT COALESCE(SUM(valor),0) as v FROM despesas WHERE data >= ? AND data < ? AND empresa_id=?",
-        (mes_inicio, prox_mes, eid)
+        (periodo_ini, periodo_fim, eid)
     ).fetchone()['v']
 
     encomendas_pendentes = db.execute(
@@ -919,6 +930,62 @@ def deletar_produto(id):
     eid = get_empresa_id()
     db = get_db()
     db.execute("UPDATE produtos SET ativo=0 WHERE id=? AND empresa_id=?", (id, eid))
+    db.commit()
+    db.close()
+    return jsonify({'ok': True})
+
+# ─── FORNECEDORES ─────────────────────────────────────────────────────────────
+
+@app.route('/api/fornecedores', methods=['GET'])
+@require_auth
+def listar_fornecedores():
+    eid = get_empresa_id()
+    db = get_db()
+    q = request.args.get('q', '')
+    if q:
+        rows = db.execute("SELECT * FROM fornecedores WHERE ativo=1 AND empresa_id=? AND nome LIKE ? ORDER BY nome", (eid, f'%{q}%')).fetchall()
+    else:
+        rows = db.execute("SELECT * FROM fornecedores WHERE ativo=1 AND empresa_id=? ORDER BY nome", (eid,)).fetchall()
+    db.close()
+    return jsonify(rows_to_list(rows))
+
+@app.route('/api/fornecedores', methods=['POST'])
+@require_auth
+def criar_fornecedor():
+    eid = get_empresa_id()
+    d = request.get_json(force=True, silent=True) or {}
+    db = get_db()
+    cur = db.execute(
+        "INSERT INTO fornecedores (empresa_id, nome, telefone, email, cnpj, endereco, obs) VALUES (?,?,?,?,?,?,?)",
+        (eid, d.get('nome',''), d.get('telefone',''), d.get('email',''), d.get('cnpj',''), d.get('endereco',''), d.get('obs',''))
+    )
+    db.commit()
+    row = db.execute("SELECT * FROM fornecedores WHERE id=?", (cur.lastrowid,)).fetchone()
+    db.close()
+    return jsonify(row_to_dict(row)), 201
+
+@app.route('/api/fornecedores/<int:id>', methods=['PUT'])
+@require_auth
+def atualizar_fornecedor(id):
+    eid = get_empresa_id()
+    d = request.get_json(force=True, silent=True) or {}
+    db = get_db()
+    db.execute(
+        "UPDATE fornecedores SET nome=?, telefone=?, email=?, cnpj=?, endereco=?, obs=? WHERE id=? AND empresa_id=?",
+        (d.get('nome',''), d.get('telefone',''), d.get('email',''), d.get('cnpj',''), d.get('endereco',''), d.get('obs',''), id, eid)
+    )
+    db.commit()
+    row = db.execute("SELECT * FROM fornecedores WHERE id=?", (id,)).fetchone()
+    db.close()
+    return jsonify(row_to_dict(row))
+
+@app.route('/api/fornecedores/<int:id>', methods=['DELETE'])
+@require_auth
+@require_admin
+def deletar_fornecedor(id):
+    eid = get_empresa_id()
+    db = get_db()
+    db.execute("UPDATE fornecedores SET ativo=0 WHERE id=? AND empresa_id=?", (id, eid))
     db.commit()
     db.close()
     return jsonify({'ok': True})
@@ -1318,13 +1385,24 @@ def criar_locacao():
     db = get_db()
     eid = get_empresa_id()
     cur = db.execute(
-        "INSERT INTO locacoes (empresa_id, cliente_id, cliente_nome, tipo, data_retirada, data_devolucao, total, desconto, forma_pagamento, status, obs, valor_entrada) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-        (eid, d.get('cliente_id'), d.get('cliente_nome',''), d.get('tipo','item'),
-         d.get('data_retirada',''), d.get('data_devolucao',''),
-         d.get('total', 0), d.get('desconto',0), d.get('forma_pagamento',''),
-         d.get('status','ativo'), d.get('obs',''), d.get('valor_entrada', 0))
+        "INSERT INTO locacoes (empresa_id, cliente_id, cliente_nome, tipo, data_retirada, data_devolucao, desconto, total, valor_entrada, forma_pagamento, status, obs) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        (eid, d.get('cliente_id'), d.get('cliente_nome',''),
+         d.get('tipo', 'item'),
+         d.get('data_retirada', datetime.date.today().isoformat()),
+         d.get('data_devolucao', datetime.date.today().isoformat()),
+         d.get('desconto',0), d.get('total',0),
+         d.get('valor_entrada', 0), d.get('forma_pagamento', 'dinheiro'),
+         d.get('status','ativo'), d.get('obs',''))
     )
     loc_id = cur.lastrowid
+    
+    valor_entrada = float(d.get('valor_entrada', 0))
+    if valor_entrada > 0:
+        db.execute(
+            "INSERT INTO vendas (empresa_id, cliente_id, cliente_nome, tipo, subtotal, total, forma_pagamento, status, obs) VALUES (?, ?, ?, 'sinal', ?, ?, ?, 'pago', ?)",
+            (eid, d.get('cliente_id'), d.get('cliente_nome',''), valor_entrada, valor_entrada, d.get('forma_pagamento', 'dinheiro'), f"Sinal / Entrada (Locação #{loc_id})")
+        )
+
     for item in d.get('itens', []):
         db.execute(
             "INSERT INTO locacao_itens (empresa_id, locacao_id, item_id, kit_id, nome, quantidade, preco_unitario, subtotal) VALUES (?,?,?,?,?,?,?,?)",
@@ -1580,6 +1658,13 @@ def criar_orcamento():
          'aberto', d.get('obs',''), d.get('valor_entrada', 0))
     )
     orc_id = cur.lastrowid
+    
+    valor_entrada = float(d.get('valor_entrada', 0))
+    if valor_entrada > 0:
+        db.execute(
+            "INSERT INTO vendas (empresa_id, cliente_id, cliente_nome, tipo, subtotal, total, forma_pagamento, status, obs) VALUES (?, ?, ?, 'sinal', ?, ?, 'dinheiro', 'pago', ?)",
+            (eid, d.get('cliente_id'), d.get('cliente_nome',''), valor_entrada, valor_entrada, f"Sinal / Entrada (Orçamento {numero})")
+        )
     for item in d.get('itens', []):
         db.execute(
             "INSERT INTO orcamento_itens (empresa_id, orcamento_id, descricao, quantidade, preco_unitario, subtotal) VALUES (?,?,?,?,?,?)",
@@ -1799,8 +1884,6 @@ def listar_encomendas():
     if status and status != 'todas':
         where.append("status=?")
         params.append(status)
-    elif not status:
-        where.append("status != 'entregue'")
     if q:
         where.append("cliente_nome LIKE ?")
         params.append(f'%{q}%')
@@ -1833,6 +1916,14 @@ def criar_encomenda():
          d.get('status','pedido'), d.get('data_pedido', datetime.date.today().isoformat()),
          d.get('data_entrega',''), d.get('total',0), d.get('valor_entrada', 0), d.get('obs',''), d.get('valor_entrada', 0))
     )
+    enc_id = cur.lastrowid
+
+    valor_entrada = float(d.get('valor_entrada', 0))
+    if valor_entrada > 0:
+        db.execute(
+            "INSERT INTO vendas (empresa_id, cliente_id, cliente_nome, tipo, subtotal, total, forma_pagamento, status, obs) VALUES (?, ?, ?, 'sinal', ?, ?, 'dinheiro', 'pago', ?)",
+            (eid, d.get('cliente_id'), d.get('cliente_nome',''), valor_entrada, valor_entrada, f"Sinal / Entrada ({numero})")
+        )
     if d.get('data_entrega'):
         db.execute(
             "INSERT INTO agenda (empresa_id, titulo, tipo, data_inicio, data_fim, hora_inicio, hora_fim, cliente_nome, descricao, status, encomenda_id, cor) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",

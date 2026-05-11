@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput, NumberInput } from "@/components/ui/currency-input";
 import {
   Dialog,
   DialogContent,
@@ -322,9 +323,11 @@ export default function PDVPage() {
                 <TableCell className="text-muted-foreground">#{v.id}</TableCell>
                 <TableCell className="font-medium text-foreground">
                   {v.cliente_nome || "—"}
-                  {v.status === 'fiado' && <span className="ml-2 text-[10px] uppercase font-bold text-amber-500">Fiado Aguardando Pg</span>}
+                  {v.status === 'fiado' && <span className="ml-2 text-[10px] uppercase font-bold text-amber-500">A Receber</span>}
                 </TableCell>
-                <TableCell className="text-muted-foreground">{v.tipo}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {v.tipo === 'sinal' ? <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20">Sinal / Haver</Badge> : v.tipo}
+                </TableCell>
                 <TableCell className="text-muted-foreground">{v.forma_pagamento}</TableCell>
                 <TableCell className="font-medium text-foreground">{brl(v.total)}</TableCell>
                 <TableCell>{statusBadge(v.status)}</TableCell>
@@ -368,7 +371,7 @@ export default function PDVPage() {
       </div>
 
       <Dialog open={modalOpen} onOpenChange={(o) => { if(!o) setModalOpen(false); else setModalOpen(true); }}>
-        <DialogContent className="sm:max-w-[720px]">
+        <DialogContent className="sm:max-w-[720px] max-h-[90vh] overflow-y-auto">
           <form onSubmit={(e) => { e.preventDefault(); salvarM.mutate(); }}>
           <DialogHeader>
             <DialogTitle>{editId ? "Editar venda" : "Nova venda"}</DialogTitle>
@@ -496,11 +499,11 @@ export default function PDVPage() {
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Qtd</label>
-                <Input type="number" value={itQtd} step={1} min={1} onChange={(e) => setItQtd(Number(e.target.value))} />
+                <NumberInput integer value={itQtd} onChange={(v) => setItQtd(v)} placeholder="1" />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Valor unit.</label>
-                <Input type="number" value={itPreco} step={0.01} min={0} onChange={(e) => setItPreco(Number(e.target.value))} />
+                <CurrencyInput value={itPreco} onChange={(v) => setItPreco(v)} placeholder="0,00" />
               </div>
             </div>
 
@@ -537,7 +540,7 @@ export default function PDVPage() {
             </div>
             <div className="mt-2 flex items-center justify-between gap-3 text-sm">
               <span className="text-muted-foreground">Desconto (R$)</span>
-              <Input type="number" value={desconto} step={0.01} min={0} onChange={(e) => setDesconto(Number(e.target.value))} />
+              <CurrencyInput value={desconto} onChange={(v) => setDesconto(v)} placeholder="0,00" />
             </div>
             <div className="mt-2 flex items-center justify-between text-base font-bold">
               <span>TOTAL</span>
@@ -560,7 +563,7 @@ export default function PDVPage() {
       <Dialog open={payModal.open} onOpenChange={(v) => { if (!v) setPayModal({ open: false, id: null }) }}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle>Quitar Fiado</DialogTitle>
+            <DialogTitle>Receber Valor</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div>

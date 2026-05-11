@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, API_BASE_URL } from "@/lib/api";
 import { brl, fmtDate } from "@/lib/format";
+import { parseInputNumber } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,8 +58,8 @@ export default function EncomendasPage() {
   const [descricao, setDescricao] = useState("");
   const [status, setStatus] = useState("pedido");
   const [dataEntrega, setDataEntrega] = useState("");
-  const [total, setTotal] = useState<number>(0);
-  const [valorEntrada, setValorEntrada] = useState<number>(0);
+  const [total, setTotal] = useState<string | number>("");
+  const [valorEntrada, setValorEntrada] = useState<string | number>("");
   const [obs, setObs] = useState("");
   const navigate = useNavigate();
   const [payModal, setPayModal] = useState<{open: boolean; id: number | null}>({open: false, id: null});
@@ -89,7 +90,7 @@ export default function EncomendasPage() {
       if (!clienteNome.trim()) throw new Error("Informe o cliente");
       if (!descricao.trim()) throw new Error("Informe a descrição");
       return api.salvarEncomenda(
-        { cliente_nome: clienteNome, descricao, data_entrega: dataEntrega, status, total, valor_entrada: valorEntrada, obs },
+        { cliente_nome: clienteNome, descricao, data_entrega: dataEntrega, status, total: parseInputNumber(total), valor_entrada: parseInputNumber(valorEntrada), obs },
         editId ?? undefined,
       );
     },
@@ -135,8 +136,8 @@ export default function EncomendasPage() {
     setDescricao("");
     setStatus("pedido");
     setDataEntrega("");
-    setTotal(0);
-    setValorEntrada(0);
+    setTotal("");
+    setValorEntrada("");
     setObs("");
   }
 
@@ -147,8 +148,8 @@ export default function EncomendasPage() {
     setDescricao(e.descricao || "");
     setStatus(e.status || "pedido");
     setDataEntrega(e.data_entrega || "");
-    setTotal(e.total || 0);
-    setValorEntrada(e.valor_entrada || 0);
+    setTotal(e.total || "");
+    setValorEntrada(e.valor_entrada || "");
     setObs(e.obs || "");
     setObs(e.obs || "");
     setModalOpen(true);
@@ -398,13 +399,13 @@ export default function EncomendasPage() {
                 <label className="text-xs font-medium text-muted-foreground">Data de Entrega</label>
                 <Input type="date" value={dataEntrega} onChange={(e) => setDataEntrega(e.target.value)} />
               </div>
-              <div>
+              <div className="sm:col-span-1">
                 <label className="text-xs font-medium text-muted-foreground">Total (R$)</label>
-                <Input type="number" step={0.01} value={total} onChange={(e) => setTotal(Number(e.target.value))} />
+                <Input type="text" value={total} onChange={(e) => setTotal(e.target.value)} />
               </div>
-              <div>
+              <div className="sm:col-span-1">
                 <label className="text-xs font-medium text-muted-foreground">Entrada / Sinal (R$)</label>
-                <Input type="number" step={0.01} value={valorEntrada} onChange={(e) => setValorEntrada(Number(e.target.value))} />
+                <Input type="text" value={valorEntrada} onChange={(e) => setValorEntrada(e.target.value)} />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Status</label>

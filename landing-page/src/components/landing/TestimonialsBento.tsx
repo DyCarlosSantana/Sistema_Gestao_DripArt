@@ -73,6 +73,12 @@ const TestimonialsBento = () => {
   return (
     <section className="py-32 px-6 bg-[#f8fafc]">
       <div className="max-w-7xl mx-auto">
+        <div className="mb-20 text-center">
+          <p className="text-dycore-pink font-black uppercase tracking-[0.4em] text-[10px] mb-6">O que nossos clientes dizem</p>
+          <h2 className="text-5xl md:text-7xl font-display font-black text-[#0f172a] tracking-tighter leading-[0.85]">
+            Quem usa, <br /> recomenda.
+          </h2>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           
           {/* Column 1 */}
@@ -81,16 +87,16 @@ const TestimonialsBento = () => {
               variant="black"
               hasStars={true}
               className="flex-[2]"
-              quote="This CRM transformed the way our team manages customers and opportunities. Within only three months of consistent use, we achieved a remarkable 35% increase in sales, driven by smarter workflows, better communication, and improved tracking."
-              author="Alex Jordan"
-              role="Content Strategist"
+              quote="O Dycore transformou a forma como nossa equipe gerencia os clientes e locações. Em apenas três meses de uso, tivemos um aumento de 35% nas vendas, com fluxos de trabalho mais inteligentes e controle total do financeiro."
+              author="Carlos Silva"
+              role="Proprietário — Decorações CS"
               delay={0.1}
             />
             <TestimonialCard 
               className="flex-1"
-              quote="Within just 60 seconds, our complete CRM system was set up and ready for immediate use."
-              author="Alex Jofer"
-              role="Systems Administrator"
+              quote="Em menos de 60 segundos, todo o nosso sistema de gestão estava configurado e pronto para usar."
+              author="Fernanda Lima"
+              role="Administradora — FL Locações"
               delay={0.4}
             />
           </div>
@@ -99,23 +105,23 @@ const TestimonialsBento = () => {
           <div className="space-y-6 flex flex-col">
             <TestimonialCard 
               className="flex-1"
-              quote="Our team finally stopped juggling countless spreadsheets and switched to a cleaner, more efficient workflow solution."
-              author="Daniel Cooper"
-              role="Project Coordinator"
+              quote="Nossa equipe finalmente parou de usar planilhas e adotou um fluxo de trabalho muito mais limpo e eficiente."
+              author="Daniel Souza"
+              role="Coordenador — Souza Eventos"
               delay={0.2}
             />
             <TestimonialCard 
               className="flex-1"
-              quote="In just one day, our whole team was seamlessly collaborating and managing projects through a single dashboard."
-              author="Liam Parker"
-              role="Productivity Lead"
+              quote="Em apenas um dia, toda a equipe já estava colaborando e gerenciando projetos em um único painel."
+              author="Lucas Oliveira"
+              role="Gerente — Festa & Cia"
               delay={0.5}
             />
             <TestimonialCard 
               className="flex-1"
-              quote="Our customer response time has improved by 40%, us to provide faster, more efficient support."
-              author="Ethan Ross"
-              role="Operations Manager"
+              quote="Nosso tempo de resposta ao cliente melhorou em 40%, proporcionando um atendimento mais rápido e eficiente."
+              author="Roberto Santos"
+              role="Gerente Operacional — RS Decor"
               delay={0.7}
             />
           </div>
@@ -124,18 +130,18 @@ const TestimonialsBento = () => {
           <div className="space-y-6 flex flex-col">
             <TestimonialCard 
               className="flex-1"
-              quote="We moved away from messy manual processes and embraced a smoother workflow that keeps our whole team aligned and efficient."
-              author="Alison Thomas"
-              role="Team Operations Lead"
+              quote="Deixamos para trás processos manuais confusos e abraçamos um fluxo mais organizado que mantém toda a equipe alinhada."
+              author="Mariana Costa"
+              role="Líder de Operações — MC Buffet"
               delay={0.3}
             />
             <TestimonialCard 
               variant="blue"
               hasStars={true}
               className="flex-[2]"
-              quote="Dycore is a modern CRM platform designed to be simple, intelligent, and enjoyable to use. It streamlines daily tasks, organizes customer interactions, and helps teams work more efficiently while making the entire experience smoother and more engaging for everyone."
-              author="Maya Rahman"
-              role="Business Process Analyst"
+              quote="O Dycore é uma plataforma de gestão moderna, simples, inteligente e agradável de usar. Ela otimiza tarefas diárias, organiza o relacionamento com clientes e ajuda equipes a trabalhar com mais eficiência, tornando toda a experiência mais fluida."
+              author="Patrícia Mendes"
+              role="Analista de Processos — PM Locações"
               delay={0.6}
             />
           </div>

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type DespesaRow } from "@/lib/api";
 import { brl, fmtDate } from "@/lib/format";
+import { parseInputNumber } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +35,7 @@ import {
 
 function emptyDespesa(): Partial<DespesaRow> {
   const hoje = new Date().toISOString().slice(0, 10);
-  return { data: hoje, descricao: "", categoria: "geral", valor: 0, forma_pagamento: "dinheiro", obs: "" };
+  return { data: hoje, descricao: "", categoria: "geral", valor: "" as any, forma_pagamento: "dinheiro", obs: "" };
 }
 
 export default function DespesasPage() {
@@ -67,13 +68,13 @@ export default function DespesasPage() {
   const saveM = useMutation({
     mutationFn: async () => {
       if (!form.descricao?.trim()) throw new Error("Descrição é obrigatória");
-      const valor = Number(form.valor || 0);
+      const valor = parseInputNumber(form.valor as any);
       if (!Number.isFinite(valor) || valor <= 0) throw new Error("Valor inválido");
       const payload = {
-        data: form.data,
+        data: form.data || new Date().toISOString().slice(0, 10),
         descricao: form.descricao?.trim(),
-        categoria: form.categoria || "geral",
         valor,
+        categoria: form.categoria || "geral",
         forma_pagamento: form.forma_pagamento || "dinheiro",
         obs: form.obs || "",
       };
@@ -244,8 +245,8 @@ export default function DespesasPage() {
               <label className="text-xs font-medium text-muted-foreground">Valor *</label>
               <Input
                 inputMode="decimal"
-                value={String(form.valor ?? "")}
-                onChange={(e) => setForm((p) => ({ ...p, valor: Number(e.target.value.replace(",", ".")) }))}
+                value={form.valor === undefined ? "" : String(form.valor)}
+                onChange={(e) => setForm((p) => ({ ...p, valor: e.target.value as any }))}
               />
             </div>
             <div className="sm:col-span-2">

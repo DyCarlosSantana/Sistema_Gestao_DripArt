@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
+import { TimeFilter } from "@/components/TimeFilter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FileText, Download } from "lucide-react";
@@ -9,6 +10,11 @@ import { API_BASE_URL } from "@/lib/api";
 export default function RelatoriosPage() {
   const [dataIni, setDataIni] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [dataFim, setDataFim] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
+
+  const handleFilterChange = useCallback((ini: string, fim: string) => {
+    setDataIni(ini);
+    setDataFim(fim);
+  }, []);
   
   const handleExportar = () => {
     if (!dataIni || !dataFim) {
@@ -33,29 +39,7 @@ export default function RelatoriosPage() {
 
       <div className="rounded-2xl border border-border bg-card p-6 shadow-subtle">
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-end">
-          <div className="w-full sm:w-auto">
-            <label className="mb-1.5 block text-sm font-medium text-foreground">
-              Data Inicial
-            </label>
-            <Input 
-              type="date" 
-              value={dataIni} 
-              onChange={(e) => setDataIni(e.target.value)}
-              className="w-full sm:w-[200px]"
-            />
-          </div>
-          
-          <div className="w-full sm:w-auto">
-            <label className="mb-1.5 block text-sm font-medium text-foreground">
-              Data Final
-            </label>
-            <Input 
-              type="date" 
-              value={dataFim} 
-              onChange={(e) => setDataFim(e.target.value)}
-              className="w-full sm:w-[200px]"
-            />
-          </div>
+          <TimeFilter onFilterChange={handleFilterChange} defaultOption="este_mes" />
 
           <Button 
             className="w-full sm:w-auto mt-4 sm:mt-0"

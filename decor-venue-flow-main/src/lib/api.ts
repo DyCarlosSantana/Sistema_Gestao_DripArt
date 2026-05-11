@@ -143,6 +143,16 @@ export interface ClienteRow {
   obs?: string;
 }
 
+export interface FornecedorRow {
+  id: number;
+  nome: string;
+  telefone?: string;
+  email?: string;
+  cnpj?: string;
+  endereco?: string;
+  obs?: string;
+}
+
 export interface ProdutoRow {
   id: number;
   nome: string;
@@ -233,6 +243,11 @@ export const api = {
   salvarProduto: (payload: Partial<ProdutoRow>, id?: number) =>
     request<any>(id ? `/produtos/${id}` : "/produtos", { method: id ? "PUT" : "POST", body: payload }),
   excluirProduto: (id: number) => request<void>(`/produtos/${id}`, { method: "DELETE" }),
+
+  fornecedores: () => request<FornecedorRow[]>("/fornecedores"),
+  salvarFornecedor: (payload: Partial<FornecedorRow>, id?: number) =>
+    request<any>(id ? `/fornecedores/${id}` : "/fornecedores", { method: id ? "PUT" : "POST", body: payload }),
+  excluirFornecedor: (id: number) => request<void>(`/fornecedores/${id}`, { method: "DELETE" }),
 
 
   despesas: (q: { data_ini: string; data_fim: string }) => request<DespesaRow[]>("/despesas", { query: q }),
