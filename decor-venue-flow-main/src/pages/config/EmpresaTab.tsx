@@ -1,107 +1,315 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { toast as showToast } from "@/components/ui/sonner";
+import { Building2, QrCode, Clock, Save, Image as ImageIcon, MapPin, Search } from "lucide-react";
 
-const PIX_TYPES = [
-  { value: "cpf", label: "CPF" },
-  { value: "cnpj", label: "CNPJ" },
-  { value: "email", label: "E-mail" },
-  { value: "telefone", label: "Telefone" },
-  { value: "aleatoria", label: "Chave Aleatória" },
-];
+export default function EmpresaTab() {
+  const qc = useQueryClient();
 
-export default function EmpresaTab({ config, onSave, isLoading }: any) {
+  const { data: empresaData, isLoading: isLoadingEmpresa } = useQuery({ queryKey: ["configEmpresa"], queryFn: api.configEmpresa });
+  const { data: horariosData, isLoading: isLoadingHorarios } = useQuery({ queryKey: ["configHorarios"], queryFn: api.configHorarios });
+
   const [local, setLocal] = useState({
-    empresa_nome: "", empresa_email: "", empresa_telefone: "", empresa_cnpj: "",
-    empresa_endereco: "", empresa_whatsapp: "", empresa_instagram: "", empresa_site: "",
-    pix_tipo: "cpf", pix_chave: "", moeda: "BRL",
-    horario_abertura: "08:00", horario_fechamento: "18:00",
-    orcamento_validade_dias: "7",
+    logo_url: "",
+    razao_social: "", inscricao_estadual: "", validade_orcamento: 7, segmento: "Locação de Móveis e Equipamentos",
+    whatsapp: "", instagram: "", site: "", tiktok: "",
+    cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "PA — Pará",
+    chaves_pix: "" // We will handle PIX differently if needed, but for now we store a string or JSON
   });
 
+  const [horarios, setHorarios] = useState<any[]>([]);
+
   useEffect(() => {
-    setLocal((prev) => ({
-      ...prev,
-      empresa_nome: config.empresa_nome || "",
-      empresa_email: config.empresa_email || "",
-      empresa_telefone: config.empresa_telefone || "",
-      empresa_cnpj: config.empresa_cnpj || "",
-      empresa_endereco: config.empresa_endereco || "",
-      empresa_whatsapp: config.empresa_whatsapp || "",
-      empresa_instagram: config.empresa_instagram || "",
-      empresa_site: config.empresa_site || "",
-      pix_tipo: config.pix_tipo || "cpf",
-      pix_chave: config.pix_chave || "",
-      moeda: config.moeda || "BRL",
-      horario_abertura: config.horario_abertura || "08:00",
-      horario_fechamento: config.horario_fechamento || "18:00",
-      orcamento_validade_dias: config.orcamento_validade_dias || "7",
-    }));
-  }, [config]);
+    if (empresaData) {
+      setLocal({
+        logo_url: empresaData.logo_url || "",
+        razao_social: empresaData.razao_social || "",
+        inscricao_estadual: empresaData.inscricao_estadual || "",
+        validade_orcamento: empresaData.validade_orcamento || 7,
+        segmento: empresaData.segmento || "Locação de Móveis e Equipamentos",
+        whatsapp: empresaData.whatsapp || "",
+        instagram: empresaData.instagram || "",
+        site: empresaData.site || "",
+        tiktok: empresaData.tiktok || "",
+        cep: empresaData.cep || "",
+        logradouro: empresaData.logradouro || "",
+        numero: empresaData.numero || "",
+        complemento: empresaData.complemento || "",
+        bairro: empresaData.bairro || "",
+        cidade: empresaData.cidade || "",
+        estado: empresaData.estado || "PA — Pará",
+        chaves_pix: empresaData.chaves_pix || ""
+      });
+    }
+  }, [empresaData]);
+
+  useEffect(() => {
+    if (horariosData) {
+      setHorarios(horariosData);
+    }
+  }, [horariosData]);
+
+  const saveEmpresaM = useMutation({
+    mutationFn: (data: any) => api.atualizarConfigEmpresa(data),
+    onSuccess: () => { showToast.success("Dados da empresa salvos!"); qc.invalidateQueries({ queryKey: ["configEmpresa"] }); },
+    onError: () => showToast.error("Erro ao salvar dados"),
+  });
+
+  const saveHorariosM = useMutation({
+    mutationFn: (data: any[]) => api.atualizarConfigHorarios({ horarios: data }),
+    onSuccess: () => { showToast.success("Horários salvos!"); qc.invalidateQueries({ queryKey: ["configHorarios"] }); },
+    onError: () => showToast.error("Erro ao salvar horários"),
+  });
 
   const h = (e: any) => { const { name, value } = e.target; setLocal((p) => ({ ...p, [name]: value })); };
 
+  const handleHorarioChange = (index: number, field: string, value: any) => {
+    const newH = [...horarios];
+    newH[index] = { ...newH[index], [field]: value };
+    setHorarios(newH);
+  };
+
+  const handleSaveAll = () => {
+    saveEmpresaM.mutate(local);
+    saveHorariosM.mutate(horarios);
+  };
+
+  if (isLoadingEmpresa || isLoadingHorarios) return <div className="p-4 text-muted-foreground">Carregando...</div>;
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Informações da Empresa</CardTitle>
-        <CardDescription>Dados usados em orçamentos, contratos, PDFs e notas fiscais.</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-5 sm:grid-cols-2">
-        {/* Logo */}
-        <div className="grid gap-2 sm:col-span-2">
-          <label className="text-sm font-medium">Logomarca</label>
-          <div className="flex items-center gap-4">
-            {config.empresa_logo && (
-              <img src={config.empresa_logo} alt="Logo" className="h-16 w-16 object-contain border rounded p-1 bg-white" />
-            )}
-            <Input type="file" accept="image/*" onChange={async (e) => {
-              if (e.target.files?.[0]) {
-                const tid = showToast.loading("Enviando logo...");
-                api.uploadLogo(e.target.files[0])
-                  .then(() => { showToast.success("Logo atualizada!", { id: tid }); window.location.reload(); })
-                  .catch(() => showToast.error("Erro ao enviar logo", { id: tid }));
-              }
-            }} />
+    <div className="space-y-6">
+      
+      {/* ── EMPRESA ── */}
+      <div className="card">
+        <div className="card-head">
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div className="card-icon" style={{ background: "hsla(var(--primary), 0.12)", color: "hsl(var(--primary))" }}>
+              <Building2 className="h-[18px] w-[18px]" />
+            </div>
+            <div>
+              <div className="card-title">Informações da Empresa</div>
+              <div className="card-subtitle">Dados usados em orçamentos, contratos, PDFs e notas fiscais.</div>
+            </div>
           </div>
         </div>
+        <div className="card-body">
+          
+          <div className="section-label">Identidade Visual</div>
+          <div className="logo-upload">
+            <div className="logo-preview">
+              {local.logo_url ? <img src={local.logo_url} alt="Logo" /> : <ImageIcon className="h-6 w-6 text-muted-foreground" />}
+            </div>
+            <div className="logo-actions">
+              <div className="logo-name">Logomarca da empresa</div>
+              <div className="logo-hint">PNG, JPG ou SVG até 2MB. Ideal: 400×200px ou maior, fundo transparente.</div>
+              <div className="logo-btns">
+                <label className="btn btn-ghost btn-sm cursor-pointer">
+                  <ImageIcon className="h-4 w-4" /> Escolher arquivo
+                  <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                    if (e.target.files?.[0]) {
+                      const tid = showToast.loading("Enviando logo...");
+                      api.uploadLogo(e.target.files[0])
+                        .then((res) => { 
+                          setLocal(p => ({ ...p, logo_url: res.url || res.caminho || '' }));
+                          showToast.success("Logo atualizada!", { id: tid }); 
+                        })
+                        .catch(() => showToast.error("Erro ao enviar logo", { id: tid }));
+                    }
+                  }} />
+                </label>
+                {local.logo_url && (
+                  <button className="btn btn-danger btn-sm" onClick={() => setLocal(p => ({...p, logo_url: ""}))}>Remover</button>
+                )}
+              </div>
+            </div>
+          </div>
 
-        <div className="grid gap-2"><label className="text-sm font-medium">Nome Fantasia</label><Input name="empresa_nome" value={local.empresa_nome} onChange={h} /></div>
-        <div className="grid gap-2"><label className="text-sm font-medium">CNPJ / CPF</label><Input name="empresa_cnpj" value={local.empresa_cnpj} onChange={h} /></div>
-        <div className="grid gap-2"><label className="text-sm font-medium">Email de Contato</label><Input name="empresa_email" type="email" value={local.empresa_email} onChange={h} /></div>
-        <div className="grid gap-2"><label className="text-sm font-medium">Telefone</label><Input name="empresa_telefone" value={local.empresa_telefone} onChange={h} /></div>
-        <div className="grid gap-2"><label className="text-sm font-medium">WhatsApp</label><Input name="empresa_whatsapp" value={local.empresa_whatsapp} onChange={h} placeholder="(11) 99999-9999" /></div>
-        <div className="grid gap-2"><label className="text-sm font-medium">Instagram</label><Input name="empresa_instagram" value={local.empresa_instagram} onChange={h} placeholder="@seuinstagram" /></div>
-        <div className="grid gap-2"><label className="text-sm font-medium">Site</label><Input name="empresa_site" value={local.empresa_site} onChange={h} placeholder="https://" /></div>
-        <div className="grid gap-2 sm:col-span-2"><label className="text-sm font-medium">Endereço Completo</label><Input name="empresa_endereco" value={local.empresa_endereco} onChange={h} /></div>
-
-        {/* PIX */}
-        <div className="sm:col-span-2 border rounded-lg p-4 bg-secondary/5">
-          <h4 className="font-semibold text-sm mb-3">Chave PIX (para PDFs e comprovantes)</h4>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="grid gap-2">
-              <label className="text-xs font-medium uppercase text-muted-foreground">Tipo</label>
-              <select name="pix_tipo" value={local.pix_tipo} onChange={h} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                {PIX_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+          <div className="section-label mt-6">Dados Cadastrais</div>
+          <div className="form-grid col-2">
+            <div className="form-group">
+              <label className="form-label">Nome Fantasia (Padrão: Configuracoes.tsx mantido? Ajustando para manual)</label>
+              <input className="form-input" type="text" name="razao_social" value={local.razao_social} onChange={h} placeholder="Razão Social Ltda." />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Inscrição Estadual</label>
+              <input className="form-input" type="text" name="inscricao_estadual" value={local.inscricao_estadual} onChange={h} placeholder="Opcional" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Validade do Orçamento (dias)</label>
+              <input className="form-input" type="number" name="validade_orcamento" value={local.validade_orcamento} onChange={h} />
+              <span className="form-hint">Prazo padrão para orçamentos enviados a clientes.</span>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Segmento / Setor</label>
+              <select className="form-select" name="segmento" value={local.segmento} onChange={h}>
+                <option>Locação de Móveis e Equipamentos</option>
+                <option>Comércio Varejista</option>
+                <option>Serviços Gerais</option>
               </select>
             </div>
-            <div className="grid gap-2 sm:col-span-2">
-              <label className="text-xs font-medium uppercase text-muted-foreground">Chave</label>
-              <Input name="pix_chave" value={local.pix_chave} onChange={h} placeholder="Insira sua chave PIX" />
+          </div>
+
+          <div className="section-label mt-6">Contato & Redes Sociais</div>
+          <div className="form-grid col-2">
+            <div className="form-group">
+              <label className="form-label">WhatsApp</label>
+              <div className="input-wrap">
+                <span className="input-prefix" style={{ color: "#25D366", fontSize: "16px" }}>●</span>
+                <input className="form-input with-prefix" type="tel" name="whatsapp" value={local.whatsapp} onChange={h} />
+              </div>
+              <span className="form-hint ok">✓ Usado em comprovantes e mensagens automáticas.</span>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Instagram</label>
+              <div className="input-wrap">
+                <span className="input-prefix">@</span>
+                <input className="form-input with-prefix" type="text" name="instagram" value={local.instagram} onChange={h} />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Site</label>
+              <div className="input-wrap">
+                <span className="input-prefix"><Search className="h-4 w-4" /></span>
+                <input className="form-input with-prefix" type="url" name="site" value={local.site} onChange={h} />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">TikTok</label>
+              <div className="input-wrap">
+                <span className="input-prefix">@</span>
+                <input className="form-input with-prefix" type="text" name="tiktok" value={local.tiktok} onChange={h} placeholder="usuário opcional" />
+              </div>
+            </div>
+          </div>
+
+          <div className="section-label mt-6">Endereço</div>
+          <div className="form-grid col-3">
+            <div className="form-group">
+              <label className="form-label">CEP</label>
+              <input className="form-input" type="text" name="cep" value={local.cep} onChange={h} />
+            </div>
+            <div className="form-group span-2">
+              <label className="form-label">Logradouro</label>
+              <input className="form-input" type="text" name="logradouro" value={local.logradouro} onChange={h} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Número</label>
+              <input className="form-input" type="text" name="numero" value={local.numero} onChange={h} placeholder="S/N" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Complemento</label>
+              <input className="form-input" type="text" name="complemento" value={local.complemento} onChange={h} placeholder="Sala, loja…" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Bairro</label>
+              <input className="form-input" type="text" name="bairro" value={local.bairro} onChange={h} placeholder="Bairro" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Cidade</label>
+              <input className="form-input" type="text" name="cidade" value={local.cidade} onChange={h} placeholder="Cidade" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Estado</label>
+              <select className="form-select" name="estado" value={local.estado} onChange={h}>
+                <option>PA — Pará</option>
+                <option>AM — Amazonas</option>
+                <option>SP — São Paulo</option>
+                <option>RJ — Rio de Janeiro</option>
+              </select>
+            </div>
+          </div>
+
+        </div>
+        <div className="card-foot">
+          <span style={{ fontSize: "12px", color: "hsl(var(--muted-foreground))" }}>Alterações afetam todos os documentos emitidos</span>
+          <div style={{ flex: 1 }}></div>
+          <button className="btn btn-primary" onClick={handleSaveAll} disabled={saveEmpresaM.isPending}>
+            <Save className="h-4 w-4" /> {saveEmpresaM.isPending ? "Salvando..." : "Salvar Empresa"}
+          </button>
+        </div>
+      </div>
+
+      {/* ── PIX ── */}
+      <div className="card">
+        <div className="card-head">
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div className="card-icon" style={{ background: "hsla(var(--success), 0.12)", color: "hsl(var(--success))" }}>
+              <QrCode className="h-[18px] w-[18px]" />
+            </div>
+            <div>
+              <div className="card-title">Chaves PIX</div>
+              <div className="card-subtitle">Usadas em PDFs de orçamento e comprovantes de venda.</div>
+            </div>
+          </div>
+          <button className="btn btn-green btn-sm"><QrCode className="h-4 w-4" /> Adicionar Chave</button>
+        </div>
+        <div className="card-body">
+          <div className="pix-item">
+            <span className="pix-type">CNPJ</span>
+            <span className="pix-key">59.363.536/0001-14</span>
+            <span className="pix-default">Principal</span>
+            <button className="btn btn-ghost btn-xs">Editar</button>
+            <button className="btn btn-danger btn-xs">Remover</button>
+          </div>
+          <div className="form-group mt-4">
+            <label className="form-label">Gerenciar PIX (texto simples por enquanto)</label>
+            <input className="form-input" name="chaves_pix" value={local.chaves_pix} onChange={h} placeholder="Cole as chaves aqui..." />
+          </div>
+        </div>
+        <div className="card-foot">
+          <button className="btn btn-primary" onClick={handleSaveAll} disabled={saveEmpresaM.isPending}>
+            <Save className="h-4 w-4" /> Salvar PIX
+          </button>
+        </div>
+      </div>
+
+      {/* ── HORÁRIOS ── */}
+      <div className="card">
+        <div className="card-head">
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div className="card-icon" style={{ background: "hsla(var(--warning), 0.12)", color: "hsl(var(--warning))" }}>
+              <Clock className="h-[18px] w-[18px]" />
+            </div>
+            <div>
+              <div className="card-title">Horário de Funcionamento</div>
+              <div className="card-subtitle">Usado como referência na agenda, relatórios e notificações automáticas.</div>
             </div>
           </div>
         </div>
+        <div className="card-body">
+          <div className="hours-grid">
+            <div className="hours-head">Dia</div><div className="hours-head">Abertura</div><div className="hours-head">Fechamento</div><div className="hours-head">Status</div>
+            {horarios.map((h, i) => (
+              <div className="hours-row" key={i}>
+                <div>
+                  <span className={`hours-day ${["Sábado", "Domingo"].includes(h.dia_semana) ? "weekend" : ""}`}>
+                    {h.dia_semana}
+                  </span>
+                </div>
+                <div>
+                  <input className="form-input" type="time" value={h.abertura || "00:00"} disabled={!h.ativo} style={{ width: "120px", padding: "6px 10px", fontSize: "13px" }} onChange={(e) => handleHorarioChange(i, "abertura", e.target.value)} />
+                </div>
+                <div>
+                  <input className="form-input" type="time" value={h.fechamento || "00:00"} disabled={!h.ativo} style={{ width: "120px", padding: "6px 10px", fontSize: "13px" }} onChange={(e) => handleHorarioChange(i, "fechamento", e.target.value)} />
+                </div>
+                <div>
+                  <label className="toggle">
+                    <input type="checkbox" checked={!!h.ativo} onChange={(e) => handleHorarioChange(i, "ativo", e.target.checked ? 1 : 0)} />
+                    <div className="toggle-track"></div><div className="toggle-thumb"></div>
+                  </label>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="card-foot">
+          <button className="btn btn-primary" onClick={handleSaveAll} disabled={saveHorariosM.isPending}>
+            <Save className="h-4 w-4" /> {saveHorariosM.isPending ? "Salvando..." : "Salvar horários"}
+          </button>
+        </div>
+      </div>
 
-        {/* Horário */}
-        <div className="grid gap-2"><label className="text-sm font-medium">Abertura</label><Input type="time" name="horario_abertura" value={local.horario_abertura} onChange={h} /></div>
-        <div className="grid gap-2"><label className="text-sm font-medium">Fechamento</label><Input type="time" name="horario_fechamento" value={local.horario_fechamento} onChange={h} /></div>
-      </CardContent>
-      <CardFooter className="border-t px-6 py-4 flex justify-end">
-        <Button onClick={() => onSave(local)} disabled={isLoading}>{isLoading ? "Salvando..." : "Salvar Alterações"}</Button>
-      </CardFooter>
-    </Card>
+    </div>
   );
 }

@@ -201,6 +201,58 @@ CREATE TABLE IF NOT EXISTS empresas (
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS config_empresa (
+    empresa_id INTEGER PRIMARY KEY,
+    logo_url TEXT,
+    razao_social TEXT,
+    inscricao_estadual TEXT,
+    validade_orcamento INTEGER DEFAULT 7,
+    segmento TEXT,
+    whatsapp TEXT,
+    instagram TEXT,
+    site TEXT,
+    tiktok TEXT,
+    cep TEXT,
+    logradouro TEXT,
+    numero TEXT,
+    complemento TEXT,
+    bairro TEXT,
+    cidade TEXT,
+    estado TEXT,
+    chaves_pix TEXT
+);
+
+CREATE TABLE IF NOT EXISTS config_horarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    empresa_id INTEGER DEFAULT 1,
+    dia_semana TEXT NOT NULL,
+    abertura TEXT,
+    fechamento TEXT,
+    ativo INTEGER DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS config_notificacoes (
+    empresa_id INTEGER PRIMARY KEY,
+    locacao_vencimento INTEGER DEFAULT 1,
+    locacao_vencida INTEGER DEFAULT 1,
+    locacao_entrega INTEGER DEFAULT 1,
+    fin_recebido INTEGER DEFAULT 1,
+    fin_atraso INTEGER DEFAULT 1,
+    fin_desconto INTEGER DEFAULT 1,
+    est_minimo INTEGER DEFAULT 1,
+    est_zerado INTEGER DEFAULT 1,
+    whatsapp_numero TEXT,
+    email_receptor TEXT
+);
+
+CREATE TABLE IF NOT EXISTS config_integracoes (
+    empresa_id INTEGER PRIMARY KEY,
+    whatsapp_ativo INTEGER DEFAULT 0,
+    gdrive_ativo INTEGER DEFAULT 0,
+    asaas_ativo INTEGER DEFAULT 0,
+    sheets_ativo INTEGER DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS clientes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     empresa_id INTEGER DEFAULT 1,
@@ -489,6 +541,13 @@ CREATE TABLE IF NOT EXISTS formas_pagamento (
     padrao INTEGER DEFAULT 0,
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(empresa_id, nome)
+);
+CREATE TABLE IF NOT EXISTS tarefas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    empresa_id INTEGER DEFAULT 1,
+    titulo TEXT NOT NULL,
+    concluida INTEGER DEFAULT 0,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 """
 

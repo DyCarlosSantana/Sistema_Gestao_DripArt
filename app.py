@@ -238,6 +238,11 @@ def login():
         permissoes = [p['permissao'] for p in p_rows]
     elif user['role'] == 'admin':
         permissoes = ['*']
+    elif user['role'] == 'gerente':
+        permissoes = ['dashboard_view', 'vendas_view', 'vendas_add', 'locacoes_view', 'encomendas_view', 'despesas_view', 'clientes_view']
+    else:
+        # operador default
+        permissoes = ['vendas_view', 'vendas_add', 'locacoes_view', 'clientes_view']
         
     db.close()
     
@@ -334,16 +339,40 @@ def criar_usuario():
     cargo_id = d.get('cargo_id') or None
     
     db = get_db()
+    email = d.get('email', '')
+    
     try:
+        # Check if email exists
+        existing = db.execute("SELECT id, ativo FROM usuarios WHERE email=?", (email,)).fetchone()
+        if existing:
+            if existing['ativo'] == 1:
+                db.close()
+                return jsonify({"erro": "Este email já está em uso por um usuário ativo. Tente outro email."}), 400
+            else:
+                # Reactivate user
+                db.execute(
+                    "UPDATE usuarios SET empresa_id=?, nome=?, senha_hash=?, role=?, cargo_id=?, ativo=1 WHERE id=?",
+                    (eid, d.get('nome',''), senha_hash, d.get('role','operador'), cargo_id, existing['id'])
+                )
+                db.commit()
+                user_id = existing['id']
+                row = db.execute("SELECT id, nome, email, role, ativo, cargo_id FROM usuarios WHERE id=?", (user_id,)).fetchone()
+                db.close()
+                return jsonify(row_to_dict(row)), 201
+                
+        # Insert new user
         cur = db.execute(
-            "INSERT INTO usuarios (empresa_id, nome, email, senha_hash, role, cargo_id) VALUES (?,?,?,?,?,?)",
-            (eid, d.get('nome',''), d.get('email',''), senha_hash, d.get('role','operador'), cargo_id)
+            "INSERT INTO usuarios (empresa_id, nome, email, senha_hash, role, cargo_id, ativo) VALUES (?,?,?,?,?,?,1)",
+            (eid, d.get('nome',''), email, senha_hash, d.get('role','operador'), cargo_id)
         )
         db.commit()
         user_id = cur.lastrowid
         row = db.execute("SELECT id, nome, email, role, ativo, cargo_id FROM usuarios WHERE id=?", (user_id,)).fetchone()
     except Exception as e:
         db.close()
+        err_msg = str(e).lower()
+        if "unique" in err_msg or "duplicate" in err_msg or "email" in err_msg:
+            return jsonify({"erro": "Este email já está em uso. Tente outro email."}), 400
         return jsonify({"erro": str(e)}), 400
     db.close()
     return jsonify(row_to_dict(row)), 201
@@ -751,6 +780,20 @@ def dashboard():
         (hoje, eid)
     ).fetchone()['c']
 
+    proximas_encomendas = db.execute("""
+        SELECT id, numero, cliente_nome, descricao, status, data_entrega
+        FROM encomendas 
+        WHERE empresa_id=? AND status NOT IN ('entregue', 'cancelado')
+        ORDER BY data_entrega ASC NULLS LAST, criado_em DESC LIMIT 5
+    """, (eid,)).fetchall()
+
+    agenda_hoje = db.execute("""
+        SELECT id, titulo, tipo, hora_inicio, hora_fim, cliente_nome, status, cor
+        FROM agenda
+        WHERE empresa_id=? AND data_inicio = ?
+        ORDER BY hora_inicio ASC LIMIT 5
+    """, (eid, hoje)).fetchall()
+
     db.close()
     return jsonify({
         'receita_mes': float(receita_mes or 0),
@@ -788,7 +831,165 @@ def dashboard():
             'status': l['status'],
             'criado_em': _clean_value(l['criado_em'])
         } for l in locacoes_recentes],
+        'proximas_encomendas': [{
+            'id': e['id'],
+            'numero': e['numero'],
+            'cliente_nome': e['cliente_nome'],
+            'descricao': e['descricao'],
+            'status': e['status'],
+            'data_entrega': _clean_value(e['data_entrega'])
+        } for e in proximas_encomendas],
+        'agenda_hoje': [{
+            'id': a['id'],
+            'titulo': a['titulo'],
+            'tipo': a['tipo'],
+            'hora_inicio': a['hora_inicio'],
+            'hora_fim': a['hora_fim'],
+            'cliente_nome': a['cliente_nome'],
+            'status': a['status'],
+            'cor': a['cor']
+        } for a in agenda_hoje],
     })
+
+# ─── TAREFAS (WIDGET HOME) ────────────────────────────────────────────────────
+
+@app.route('/api/tarefas', methods=['GET'])
+@require_auth
+def listar_tarefas():
+    eid = get_empresa_id()
+    db = get_db()
+    rows = db.execute("SELECT id, titulo, concluida, criado_em FROM tarefas WHERE empresa_id=? ORDER BY concluida ASC, criado_em DESC LIMIT 20", (eid,)).fetchall()
+    db.close()
+    return jsonify(rows_to_list(rows))
+
+@app.route('/api/tarefas', methods=['POST'])
+@require_auth
+def criar_tarefa():
+    eid = get_empresa_id()
+    d = request.get_json(force=True, silent=True) or {}
+    db = get_db()
+    cur = db.execute(
+        "INSERT INTO tarefas (empresa_id, titulo, concluida) VALUES (?,?,0)",
+        (eid, d.get('titulo','Nova Tarefa'))
+    )
+    db.commit()
+    row = db.execute("SELECT id, titulo, concluida, criado_em FROM tarefas WHERE id=?", (cur.lastrowid,)).fetchone()
+    db.close()
+    return jsonify(row_to_dict(row)), 201
+
+@app.route('/api/tarefas/<int:id>', methods=['PUT'])
+@require_auth
+def atualizar_tarefa(id):
+    eid = get_empresa_id()
+    d = request.get_json(force=True, silent=True) or {}
+    db = get_db()
+    
+    if 'concluida' in d:
+        db.execute("UPDATE tarefas SET concluida=? WHERE id=? AND empresa_id=?", (int(d['concluida']), id, eid))
+    if 'titulo' in d:
+        db.execute("UPDATE tarefas SET titulo=? WHERE id=? AND empresa_id=?", (d['titulo'], id, eid))
+        
+    db.commit()
+    row = db.execute("SELECT id, titulo, concluida, criado_em FROM tarefas WHERE id=? AND empresa_id=?", (id, eid)).fetchone()
+    db.close()
+    return jsonify(row_to_dict(row))
+
+@app.route('/api/tarefas/<int:id>', methods=['DELETE'])
+@require_auth
+def deletar_tarefa(id):
+    eid = get_empresa_id()
+    db = get_db()
+    db.execute("DELETE FROM tarefas WHERE id=? AND empresa_id=?", (id, eid))
+    db.commit()
+    db.close()
+    return jsonify({'ok': True})
+
+# ─── CONFIGURAÇÕES (EMPRESA, HORÁRIOS, ETC) ───────────────────────────────────
+
+def get_or_create_config(table, columns):
+    eid = get_empresa_id()
+    db = get_db()
+    row = db.execute(f"SELECT * FROM {table} WHERE empresa_id=?", (eid,)).fetchone()
+    if not row:
+        db.execute(f"INSERT INTO {table} (empresa_id) VALUES (?)", (eid,))
+        db.commit()
+        row = db.execute(f"SELECT * FROM {table} WHERE empresa_id=?", (eid,)).fetchone()
+    db.close()
+    return row
+
+def update_config(table, data, allowed_keys):
+    eid = get_empresa_id()
+    updates = []
+    params = []
+    for k in allowed_keys:
+        if k in data:
+            updates.append(f"{k}=?")
+            params.append(data[k])
+    if updates:
+        params.append(eid)
+        db = get_db()
+        # Create row if not exists
+        db.execute(f"INSERT OR IGNORE INTO {table} (empresa_id) VALUES (?)", (eid,))
+        db.execute(f"UPDATE {table} SET {','.join(updates)} WHERE empresa_id=?", params)
+        db.commit()
+        db.close()
+
+@app.route('/api/config/empresa', methods=['GET', 'PUT'])
+@require_auth
+def config_empresa():
+    keys = ['logo_url', 'razao_social', 'inscricao_estadual', 'validade_orcamento', 'segmento', 'whatsapp', 'instagram', 'site', 'tiktok', 'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'chaves_pix']
+    if request.method == 'PUT':
+        update_config('config_empresa', request.get_json(silent=True) or {}, keys)
+    row = get_or_create_config('config_empresa', keys)
+    return jsonify(row_to_dict(row))
+
+@app.route('/api/config/notificacoes', methods=['GET', 'PUT'])
+@require_auth
+def config_notificacoes():
+    keys = ['locacao_vencimento', 'locacao_vencida', 'locacao_entrega', 'fin_recebido', 'fin_atraso', 'fin_desconto', 'est_minimo', 'est_zerado', 'whatsapp_numero', 'email_receptor']
+    if request.method == 'PUT':
+        update_config('config_notificacoes', request.get_json(silent=True) or {}, keys)
+    row = get_or_create_config('config_notificacoes', keys)
+    return jsonify(row_to_dict(row))
+
+@app.route('/api/config/integracoes', methods=['GET', 'PUT'])
+@require_auth
+def config_integracoes():
+    keys = ['whatsapp_ativo', 'gdrive_ativo', 'asaas_ativo', 'sheets_ativo']
+    if request.method == 'PUT':
+        update_config('config_integracoes', request.get_json(silent=True) or {}, keys)
+    row = get_or_create_config('config_integracoes', keys)
+    return jsonify(row_to_dict(row))
+
+@app.route('/api/config/horarios', methods=['GET', 'PUT'])
+@require_auth
+def config_horarios():
+    eid = get_empresa_id()
+    db = get_db()
+    if request.method == 'PUT':
+        d = request.get_json(silent=True) or {}
+        horarios = d.get('horarios', [])
+        db.execute("DELETE FROM config_horarios WHERE empresa_id=?", (eid,))
+        for h in horarios:
+            db.execute("INSERT INTO config_horarios (empresa_id, dia_semana, abertura, fechamento, ativo) VALUES (?,?,?,?,?)",
+                       (eid, h.get('dia_semana'), h.get('abertura'), h.get('fechamento'), h.get('ativo', 1)))
+        db.commit()
+    
+    rows = db.execute("SELECT * FROM config_horarios WHERE empresa_id=?", (eid,)).fetchall()
+    if not rows:
+        # Default initialization
+        dias = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
+        for dia in dias:
+            ab = "08:00"
+            fc = "18:00" if dia not in ["Sábado", "Domingo"] else "12:00" if dia == "Sábado" else "00:00"
+            at = 1 if dia != "Domingo" else 0
+            db.execute("INSERT INTO config_horarios (empresa_id, dia_semana, abertura, fechamento, ativo) VALUES (?,?,?,?,?)",
+                       (eid, dia, ab, fc, at))
+        db.commit()
+        rows = db.execute("SELECT * FROM config_horarios WHERE empresa_id=?", (eid,)).fetchall()
+    
+    db.close()
+    return jsonify(rows_to_list(rows))
 
 # ─── CLIENTES ─────────────────────────────────────────────────────────────────
 
@@ -1385,12 +1586,11 @@ def criar_locacao():
     db = get_db()
     eid = get_empresa_id()
     cur = db.execute(
-        "INSERT INTO locacoes (empresa_id, cliente_id, cliente_nome, tipo, data_retirada, data_devolucao, desconto, total, valor_entrada, forma_pagamento, status, obs) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO locacoes (empresa_id, cliente_id, cliente_nome, data_retirada, data_devolucao, subtotal, desconto, total, valor_entrada, forma_pagamento, status, obs) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
         (eid, d.get('cliente_id'), d.get('cliente_nome',''),
-         d.get('tipo', 'item'),
          d.get('data_retirada', datetime.date.today().isoformat()),
          d.get('data_devolucao', datetime.date.today().isoformat()),
-         d.get('desconto',0), d.get('total',0),
+         d.get('subtotal',0), d.get('desconto',0), d.get('total',0),
          d.get('valor_entrada', 0), d.get('forma_pagamento', 'dinheiro'),
          d.get('status','ativo'), d.get('obs',''))
     )

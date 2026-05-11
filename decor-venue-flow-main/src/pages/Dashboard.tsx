@@ -29,7 +29,7 @@ import {
   YAxis,
   Legend,
 } from "recharts";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -123,10 +123,10 @@ export default function Dashboard() {
         <div className="flex flex-wrap items-center gap-3">
           <TimeFilter 
             defaultOption="este_mes"
-            onFilterChange={(ini, fim) => {
+            onFilterChange={useCallback((ini: string, fim: string) => {
               setDataIni(ini);
               setDataFim(fim);
-            }} 
+            }, [])} 
           />
           <div className="rounded-xl border border-border bg-card/70 px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
             {dashQ.isLoading

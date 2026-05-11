@@ -10,11 +10,11 @@ import {
 } from "@/components/ui/pagination";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type ProdutoRow, type FornecedorRow } from "@/lib/api";
+import { parseInputNumber } from "@/lib/utils";
 import { brl } from "@/lib/format";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { ImageIcon, Edit2, Trash2, Plus, Package, Search, AlertTriangle } from "lucide-react";
-import { CurrencyInput, NumberInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -73,8 +73,8 @@ export default function ProdutosPage() {
         {
           nome: form.nome.trim(),
           categoria: (form.categoria || "").toString(),
-          preco_venda: Number(form.preco_venda) || 0,
-          estoque: Number(form.estoque) || 0,
+          preco_venda: parseInputNumber(form.preco_venda ?? 0),
+          estoque: parseInputNumber(form.estoque ?? 0),
           imagem_url: (form.imagem_url || "").toString(),
         },
         editing?.id
@@ -473,18 +473,20 @@ export default function ProdutosPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">Preço de Venda *</label>
-                  <CurrencyInput
-                    value={form.preco_venda || 0}
-                    onChange={(v) => setForm({ ...form, preco_venda: v })}
+                  <Input
+                    inputMode="decimal"
                     placeholder="0,00"
+                    value={form.preco_venda || ""}
+                    onChange={(e) => setForm({ ...form, preco_venda: e.target.value as any })}
                   />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">Estoque</label>
-                  <NumberInput
-                    integer
-                    value={form.estoque ?? 0}
-                    onChange={(v) => setForm({ ...form, estoque: v })}
+                  <Input
+                    inputMode="numeric"
+                    placeholder="0"
+                    value={form.estoque || ""}
+                    onChange={(e) => setForm({ ...form, estoque: e.target.value as any })}
                   />
                 </div>
               </div>

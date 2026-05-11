@@ -2,13 +2,15 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { toast as showToast } from "@/components/ui/sonner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Building2, Users, Shield, LayoutGrid, Wallet, Settings, Bell, Zap } from "lucide-react";
 import EmpresaTab from "@/pages/config/EmpresaTab";
 import UsuariosTab from "@/pages/config/UsuariosTab";
 import CargosTab from "@/pages/config/CargosTab";
 import ModulosTab from "@/pages/config/ModulosTab";
 import FinanceiroTab from "@/pages/config/FinanceiroTab";
 import SistemaTab from "@/pages/config/SistemaTab";
+import NotificacoesTab from "@/pages/config/NotificacoesTab";
+import IntegracoesTab from "@/pages/config/IntegracoesTab";
 
 export default function ConfiguracoesPage() {
   const qc = useQueryClient();
@@ -27,47 +29,67 @@ export default function ConfiguracoesPage() {
 
   const toggleModuloM = useMutation({
     mutationFn: ({ modulo, ativo }: { modulo: string; ativo: boolean }) => api.toggleModulo(modulo, ativo),
-    onSuccess: () => { showToast.success("Módulo atualizado!"); qc.invalidateQueries({ queryKey: ["modulos"] }); qc.invalidateQueries({ queryKey: ["me", "modulos"] }); },
+    onSuccess: () => { showToast.success("Módulo atualizado!"); qc.invalidateQueries({ queryKey: ["modulos"] }); },
+    onError: () => showToast.error("Erro ao atualizar módulo"),
   });
 
+  const tabs = [
+    { value: "empresa", label: "Empresa", icon: Building2 },
+    { value: "usuarios", label: "Usuários", icon: Users, badge: usuariosQ.data?.length },
+    { value: "cargos", label: "Cargos & Permissões", icon: Shield },
+    { value: "modulos", label: "Módulos", icon: LayoutGrid },
+    { value: "financeiro", label: "Financeiro", icon: Wallet },
+    { value: "notificacoes", label: "Notificações", icon: Bell, badgeText: "Novo", badgeColor: "hsla(var(--success), 0.12)", badgeTextColor: "hsl(var(--success))" },
+    { value: "integracoes", label: "Integrações", icon: Zap, badgeText: "Novo", badgeColor: "hsla(var(--success), 0.12)", badgeTextColor: "hsl(var(--success))" },
+    { value: "sistema", label: "Sistema", icon: Settings },
+  ];
+
   return (
-    <div className="space-y-8 pb-10">
-      <header>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Configurações do Sistema</h1>
-        <p className="text-muted-foreground mt-1">Gerencie sua empresa, usuários, módulos e preferências.</p>
-      </header>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto">
-          <TabsTrigger value="empresa">Empresa</TabsTrigger>
-          <TabsTrigger value="usuarios">Usuários</TabsTrigger>
-          <TabsTrigger value="cargos">Cargos</TabsTrigger>
-          <TabsTrigger value="modulos">Módulos</TabsTrigger>
-          <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
-          <TabsTrigger value="sistema">Sistema</TabsTrigger>
-        </TabsList>
-
-        <div className="mt-6">
-          <TabsContent value="empresa">
-            <EmpresaTab config={configQ.data || {}} onSave={(d: any) => saveConfigM.mutate(d)} isLoading={saveConfigM.isPending} />
-          </TabsContent>
-          <TabsContent value="usuarios">
-            <UsuariosTab usuarios={usuariosQ.data || []} cargos={cargosQ.data || []} />
-          </TabsContent>
-          <TabsContent value="cargos">
-            <CargosTab cargos={cargosQ.data || []} />
-          </TabsContent>
-          <TabsContent value="modulos">
-            <ModulosTab modulos={modulosQ.data || []} onToggle={(m, a) => toggleModuloM.mutate({ modulo: m, ativo: a })} />
-          </TabsContent>
-          <TabsContent value="financeiro">
-            <FinanceiroTab />
-          </TabsContent>
-          <TabsContent value="sistema">
-            <SistemaTab />
-          </TabsContent>
+    <div className="flex flex-col h-full overflow-hidden bg-background">
+      {/* ── SETTINGS HEADER ── */}
+      <div className="settings-header">
+        <div className="settings-title">
+          <Settings className="h-5 w-5 text-primary" />
+          Configurações do Sistema
         </div>
-      </Tabs>
+        <div className="settings-subtitle">
+          Gerencie sua empresa, usuários, módulos e preferências.
+        </div>
+        
+        {/* ── TABS ── */}
+        <div className="tabs">
+          {tabs.map(t => (
+            <button
+              key={t.value}
+              onClick={() => setActiveTab(t.value)}
+              className={`tab ${activeTab === t.value ? "active" : ""}`}
+            >
+              <t.icon />
+              {t.label}
+              {!!t.badge && (
+                <span className="tab-badge">{t.badge}</span>
+              )}
+              {!!t.badgeText && (
+                <span className="tab-badge" style={{ background: t.badgeColor, color: t.badgeTextColor }}>
+                  {t.badgeText}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── TAB CONTENT ── */}
+      <div className="tab-panels">
+        {activeTab === "empresa" && <EmpresaTab config={configQ.data || {}} onSave={(d: any) => saveConfigM.mutate(d)} isLoading={saveConfigM.isPending} />}
+        {activeTab === "usuarios" && <UsuariosTab usuarios={usuariosQ.data || []} cargos={cargosQ.data || []} />}
+        {activeTab === "cargos" && <CargosTab cargos={cargosQ.data || []} />}
+        {activeTab === "modulos" && <ModulosTab modulos={modulosQ.data || []} onToggle={(m, a) => toggleModuloM.mutate({ modulo: m, ativo: a })} />}
+        {activeTab === "financeiro" && <FinanceiroTab />}
+        {activeTab === "notificacoes" && <NotificacoesTab />}
+        {activeTab === "integracoes" && <IntegracoesTab />}
+        {activeTab === "sistema" && <SistemaTab />}
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { format, subDays, startOfMonth, endOfMonth, subMonths, startOfDay, endOfDay } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,10 @@ export function TimeFilter({ onFilterChange, defaultOption = "este_mes" }: TimeF
   const [customIni, setCustomIni] = useState("");
   const [customFim, setCustomFim] = useState("");
 
+  // Use ref to avoid infinite loop when onFilterChange is a new function each render
+  const onFilterChangeRef = useRef(onFilterChange);
+  onFilterChangeRef.current = onFilterChange;
+
   useEffect(() => {
     const today = new Date();
     let ini = "";
@@ -25,11 +29,12 @@ export function TimeFilter({ onFilterChange, defaultOption = "este_mes" }: TimeF
         ini = format(startOfDay(today), "yyyy-MM-dd");
         fim = format(endOfDay(today), "yyyy-MM-dd");
         break;
-      case "ontem":
+      case "ontem": {
         const ontem = subDays(today, 1);
         ini = format(startOfDay(ontem), "yyyy-MM-dd");
         fim = format(endOfDay(ontem), "yyyy-MM-dd");
         break;
+      }
       case "7dias":
         ini = format(subDays(today, 6), "yyyy-MM-dd");
         fim = format(today, "yyyy-MM-dd");
@@ -42,11 +47,12 @@ export function TimeFilter({ onFilterChange, defaultOption = "este_mes" }: TimeF
         ini = format(startOfMonth(today), "yyyy-MM-dd");
         fim = format(endOfMonth(today), "yyyy-MM-dd");
         break;
-      case "mes_passado":
+      case "mes_passado": {
         const mesPassado = subMonths(today, 1);
         ini = format(startOfMonth(mesPassado), "yyyy-MM-dd");
         fim = format(endOfMonth(mesPassado), "yyyy-MM-dd");
         break;
+      }
       case "personalizado":
         ini = customIni;
         fim = customFim;
@@ -56,11 +62,11 @@ export function TimeFilter({ onFilterChange, defaultOption = "este_mes" }: TimeF
     if (option !== "personalizado") {
       setCustomIni(ini);
       setCustomFim(fim);
-      onFilterChange(ini, fim);
+      if (ini && fim) onFilterChangeRef.current(ini, fim);
     } else if (customIni && customFim) {
-      onFilterChange(customIni, customFim);
+      onFilterChangeRef.current(customIni, customFim);
     }
-  }, [option, customIni, customFim, onFilterChange]);
+  }, [option, customIni, customFim]);
 
   return (
     <div className="flex flex-col sm:flex-row gap-3 items-end">

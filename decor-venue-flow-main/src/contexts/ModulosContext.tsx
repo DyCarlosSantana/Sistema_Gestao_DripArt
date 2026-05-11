@@ -11,6 +11,8 @@
 
 import React, { createContext, useContext } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 
 interface ModulosContextType {
   hasModulo: (modulo: string) => boolean;
@@ -29,7 +31,12 @@ const ModulosContext = createContext<ModulosContextType>({
 export function ModulosProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useAuth();
 
-  // Se o usuário estive com permissão '*', libera tudo
+  const { data: tenantModulos, isLoading } = useQuery({
+    queryKey: ['modulos'],
+    queryFn: api.modulos,
+    enabled: isAuthenticated,
+  });
+
   const hasMap: any = {
     "dashboard": "dashboard_view",
     "pdv": "vendas_view",
@@ -51,9 +58,25 @@ export function ModulosProvider({ children }: { children: React.ReactNode }) {
 
   const hasModulo = (modulo: string) => {
     if (!user) return false;
+
+    // 1. Check global tenant module toggle first
+    if (tenantModulos) {
+      // Find the module matching the slug. If it's explicitly disabled (ativo === 0), hide it.
+      // Note: the hasMap keys are sometimes different from modulo names.
+      // E.g. "pdv" is part of "vendas", "locacoes" is "locacoes".
+      // We map the navigation id to the DB modulo name:
+      let dbModulo = modulo;
+      if (['pdv', 'orcamentos', 'fiado'].includes(modulo)) dbModulo = 'vendas';
+      if (['itens_locacao'].includes(modulo)) dbModulo = 'locacoes';
+      if (['fluxo_caixa'].includes(modulo)) dbModulo = 'despesas';
+
+      const found = tenantModulos.find((m: any) => m.modulo === dbModulo);
+      if (found && found.ativo === 0) return false;
+    }
+
+    // 2. Check RBAC permissions
     if (user.role === 'admin') return true;
     
-    // Convert old 'modulo' concept into the new granular RBAC permissions
     const requiredPermission = hasMap[modulo];
     if (!requiredPermission) return true; // fallback open if not mapped
 
@@ -74,7 +97,7 @@ export function ModulosProvider({ children }: { children: React.ReactNode }) {
       hasModulo,
       isAdmin,
       isGerente,
-      loading: false,
+      loading: isLoading,
     }}>
       {children}
     </ModulosContext.Provider>

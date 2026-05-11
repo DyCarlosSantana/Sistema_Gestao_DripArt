@@ -76,6 +76,24 @@ export interface DashboardResumo {
   fiado_total_count: number;
   fiado_atrasado_count: number;
   fiado_atrasado_valor: number;
+  proximas_encomendas?: Array<{
+    id: number;
+    numero: string;
+    cliente_nome: string;
+    descricao: string;
+    status: string;
+    data_entrega: string;
+  }>;
+  agenda_hoje?: Array<{
+    id: number;
+    titulo: string;
+    tipo: string;
+    hora_inicio: string;
+    hora_fim: string;
+    cliente_nome: string;
+    status: string;
+    cor: string;
+  }>;
   alertas_locacao: Array<{
     cliente_nome: string;
     data_devolucao: string;
@@ -84,6 +102,13 @@ export interface DashboardResumo {
   }>;
   receita_categorias: Array<{ tipo: string; total: number }>;
   ultimas_movimentacoes: Array<{ cliente_nome?: string; descricao: string; total: number; status: string }>;
+}
+
+export interface Tarefa {
+  id: number;
+  titulo: string;
+  concluida: number;
+  criado_em: string;
 }
 
 export interface DashboardEvolucaoRow {
@@ -173,7 +198,7 @@ export interface DespesaRow {
 }
 
 export const api = {
-  dashboard: () => request<DashboardResumo>("/dashboard"),
+  dashboard: (q?: { data_ini?: string; data_fim?: string }) => request<DashboardResumo>("/dashboard", { query: q as any }),
   dashboardEvolucao: () => request<DashboardEvolucaoRow[]>("/dashboard/evolucao"),
   dre: () => request<any[]>("/dashboard/dre"),
   agenda: (q?: { mes?: string; data_ini?: string; data_fim?: string }) => request<any[]>("/agenda", { query: q as any }),
@@ -317,4 +342,21 @@ export const api = {
     formData.append("file", file);
     return request<any>("/upload/logo", { method: "POST", body: formData });
   },
+
+  // Tarefas (Home)
+  tarefas: () => request<Tarefa[]>("/tarefas"),
+  criarTarefa: (titulo: string) => request<Tarefa>("/tarefas", { method: "POST", body: { titulo } }),
+  atualizarTarefa: (id: number, data: { concluida?: number; titulo?: string }) => 
+    request<Tarefa>(`/tarefas/${id}`, { method: "PUT", body: data }),
+  excluirTarefa: (id: number) => request<{ok: boolean}>(`/tarefas/${id}`, { method: "DELETE" }),
+
+  // Configurações
+  configEmpresa: () => request<any>("/config/empresa"),
+  atualizarConfigEmpresa: (payload: any) => request<any>("/config/empresa", { method: "PUT", body: payload }),
+  configNotificacoes: () => request<any>("/config/notificacoes"),
+  atualizarConfigNotificacoes: (payload: any) => request<any>("/config/notificacoes", { method: "PUT", body: payload }),
+  configIntegracoes: () => request<any>("/config/integracoes"),
+  atualizarConfigIntegracoes: (payload: any) => request<any>("/config/integracoes", { method: "PUT", body: payload }),
+  configHorarios: () => request<any[]>("/config/horarios"),
+  atualizarConfigHorarios: (payload: { horarios: any[] }) => request<any[]>("/config/horarios", { method: "PUT", body: payload }),
 };

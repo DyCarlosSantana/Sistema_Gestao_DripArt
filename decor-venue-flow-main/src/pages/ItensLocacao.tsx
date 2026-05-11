@@ -9,13 +9,13 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type VendaRow } from "@/lib/api";
+import { api } from "@/lib/api";
 import { brl } from "@/lib/format";
+import { parseInputNumber } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { CurrencyInput, NumberInput } from "@/components/ui/currency-input";
 import {
   Dialog,
   DialogContent,
@@ -31,15 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Edit2, Package, Trash2, Box } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Edit2, Package, Trash2, Box, Search, Plus } from "lucide-react";
 
 type ItemLocRow = {
   id: number;
@@ -61,6 +54,8 @@ export default function ItensLocacaoPage() {
   const itensQ = useQuery({ queryKey: ["itens-locacao"], queryFn: api.itensLocacao });
   const kitsQ = useQuery({ queryKey: ["kits"], queryFn: api.kits });
 
+  const [tab, setTab] = useState("itens");
+
   const [qItens, setQItens] = useState("");
   const filteredItens = useMemo(() => {
     const all = (itensQ.data || []) as ItemLocRow[];
@@ -77,23 +72,23 @@ export default function ItensLocacaoPage() {
     return all.filter((k) => (k.nome || "").toLowerCase().includes(ql));
   }, [kitsQ.data, qKits]);
 
-  const pItens = usePagination(filteredItens, 8);
-  const pKits = usePagination(filteredKits, 8);
+  const pItens = usePagination(filteredItens, 12);
+  const pKits = usePagination(filteredKits, 12);
 
   // -------- Item modal --------
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [editItemId, setEditItemId] = useState<number | null>(null);
   const [ilNome, setIlNome] = useState("");
   const [ilCategoria, setIlCategoria] = useState("");
-  const [ilPreco, setIlPreco] = useState<number>(0);
-  const [ilQtdTotal, setIlQtdTotal] = useState<number>(1);
+  const [ilPreco, setIlPreco] = useState<string | number>("");
+  const [ilQtdTotal, setIlQtdTotal] = useState<string | number>("");
 
   function resetItemForm() {
     setEditItemId(null);
     setIlNome("");
     setIlCategoria("");
-    setIlPreco(0);
-    setIlQtdTotal(1);
+    setIlPreco("");
+    setIlQtdTotal("");
   }
 
   function abrirNovoItem() {
@@ -105,20 +100,21 @@ export default function ItensLocacaoPage() {
     setEditItemId(it.id);
     setIlNome(it.nome || "");
     setIlCategoria(it.categoria || "");
-    setIlPreco(Number(it.preco_diaria || 0));
-    setIlQtdTotal(Number(it.quantidade_total || 1));
+    setIlPreco(it.preco_diaria || "");
+    setIlQtdTotal(it.quantidade_total || "");
     setItemModalOpen(true);
   }
 
   const salvarItemM = useMutation({
     mutationFn: () => {
       if (!ilNome.trim()) throw new Error("Informe o nome do item");
-      if (!Number.isFinite(ilPreco) || ilPreco < 0) throw new Error("Preço inválido");
+      const preco = parseInputNumber(ilPreco);
+      if (preco < 0) throw new Error("Preço inválido");
       const payload = {
         nome: ilNome.trim(),
         categoria: ilCategoria.trim(),
-        preco_diaria: Number(ilPreco),
-        quantidade_total: Number(ilQtdTotal) || 1,
+        preco_diaria: preco,
+        quantidade_total: parseInputNumber(ilQtdTotal) || 1,
       };
       return api.salvarItemLocacao(payload, editItemId ?? undefined);
     },
@@ -144,16 +140,16 @@ export default function ItensLocacaoPage() {
   const [kitModalOpen, setKitModalOpen] = useState(false);
   const [editKitId, setEditKitId] = useState<number | null>(null);
   const [kitNome, setKitNome] = useState("");
-  const [kitPreco, setKitPreco] = useState<number>(0);
+  const [kitPreco, setKitPreco] = useState<string | number>("");
 
   const [kitItems, setKitItems] = useState<Array<{ item_id: number; nome: string; quantidade: number }>>([]);
   const [kitSelItemId, setKitSelItemId] = useState<number | "">("");
-  const [kitSelQtd, setKitSelQtd] = useState<number>(1);
+  const [kitSelQtd, setKitSelQtd] = useState<string | number>(1);
 
   function resetKitForm() {
     setEditKitId(null);
     setKitNome("");
-    setKitPreco(0);
+    setKitPreco("");
     setKitItems([]);
     setKitSelItemId("");
     setKitSelQtd(1);
@@ -167,7 +163,7 @@ export default function ItensLocacaoPage() {
   function abrirEditarKit(k: KitRow) {
     setEditKitId(k.id);
     setKitNome(k.nome || "");
-    setKitPreco(Number(k.preco_total || 0));
+    setKitPreco(k.preco_total || "");
     setKitItems(
       (k.itens || []).map((i) => ({
         item_id: Number(i.item_id ?? i.id),
@@ -180,7 +176,7 @@ export default function ItensLocacaoPage() {
 
   function adicionarItemAoKit() {
     if (!kitSelItemId) return toast.error("Selecione um item");
-    const qtd = Number(kitSelQtd);
+    const qtd = parseInputNumber(kitSelQtd);
     if (!Number.isFinite(qtd) || qtd <= 0) return toast.error("Quantidade inválida");
     const item = (itensQ.data || []).find((x: any) => x.id === kitSelItemId);
     if (!item) return toast.error("Item não encontrado");
@@ -195,9 +191,10 @@ export default function ItensLocacaoPage() {
   const salvarKitM = useMutation({
     mutationFn: () => {
       if (!kitNome.trim()) throw new Error("Informe o nome do kit");
-      if (!Number.isFinite(kitPreco) || kitPreco < 0) throw new Error("Preço inválido");
+      const preco = parseInputNumber(kitPreco);
+      if (preco < 0) throw new Error("Preço inválido");
       if (kitItems.length === 0) throw new Error("Adicione ao menos um item no kit");
-      const payload = { nome: kitNome.trim(), preco_total: Number(kitPreco), itens: kitItems };
+      const payload = { nome: kitNome.trim(), preco_total: preco, itens: kitItems };
       return api.salvarKit(payload, editKitId ?? undefined);
     },
     onSuccess: async () => {
@@ -222,90 +219,120 @@ export default function ItensLocacaoPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Itens / Kits de locação</h1>
+          <h1 className="font-display text-2xl font-bold text-foreground">Itens para Locação</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Gerencie itens avulsos e kits usados nas locações.
+            Gerencie itens avulsos e kits usados nas locações
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={abrirNovoKit}>
-            + Novo kit
-          </Button>
-          <Button variant="outline" onClick={abrirNovoItem}>
-            + Novo item
-          </Button>
+        <div className="flex gap-2">
+          {tab === "itens" && (
+            <Button onClick={abrirNovoItem}>
+              <Plus className="mr-2 h-4 w-4" /> Novo Item
+            </Button>
+          )}
+          {tab === "kits" && (
+            <Button onClick={abrirNovoKit}>
+              <Plus className="mr-2 h-4 w-4" /> Novo Kit
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-            <div className="text-sm font-semibold">Itens</div>
-            <Input placeholder="Buscar item…" value={qItens} onChange={(e) => setQItens(e.target.value)} className="w-[260px]" />
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="itens">Itens Individuais</TabsTrigger>
+          <TabsTrigger value="kits">Kits</TabsTrigger>
+        </TabsList>
+
+        {/* ── TAB: Itens Individuais ── */}
+        <TabsContent value="itens" className="space-y-6">
+          <div className="flex flex-wrap gap-2">
+            <div className="relative max-w-xs flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar item..."
+                value={qItens}
+                onChange={(e) => setQItens(e.target.value)}
+                className="pl-9"
+              />
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {itensQ.isLoading && (
-              <div className="col-span-full py-10 text-center text-muted-foreground">
-                Carregando itens…
-              </div>
-            )}
-            {!itensQ.isLoading && filteredItens.length === 0 ? (
-              <div className="col-span-full py-10 text-center text-muted-foreground">
-                Nenhum item encontrado
-              </div>
-            ) : null}
-            {pItens.currentData.map((it) => (
-              <Card key={it.id} className="flex flex-col shadow-subtle hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-base">{it.nome}</CardTitle>
-                      <CardDescription className="text-xs mt-1">
-                        {it.categoria ? <Badge variant="secondary" className="bg-secondary text-muted-foreground">{it.categoria}</Badge> : "Sem categoria"}
-                      </CardDescription>
+          {itensQ.isLoading ? (
+            <div className="py-20 text-center text-muted-foreground">Carregando itens…</div>
+          ) : filteredItens.length === 0 ? (
+            <div className="py-20 text-center text-muted-foreground">
+              <Package className="mx-auto h-12 w-12 mb-3 opacity-30" />
+              Nenhum item encontrado.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {pItens.currentData.map((it) => (
+                <div
+                  key={it.id}
+                  className="card-lift group relative rounded-2xl border border-border bg-card overflow-hidden shadow-subtle"
+                >
+                  {/* Icon area */}
+                  <div className="relative h-24 bg-muted/30 flex items-center justify-center">
+                    <Package className="h-10 w-10 text-muted-foreground/30" />
+
+                    {/* Hover overlay actions */}
+                    <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors flex items-start justify-end p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => abrirEditarItem(it)}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/90 text-primary shadow-sm hover:bg-white transition-colors"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Excluir "${it.nome}"?`)) excluirItemM.mutate(it.id);
+                          }}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/90 text-destructive shadow-sm hover:bg-white transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="flex-1 space-y-2 text-sm pb-2">
-                  <div className="flex justify-between items-center text-muted-foreground">
-                    <span className="text-xs">Diária</span>
-                    <span className="font-medium text-foreground">{brl(it.preco_diaria || 0)}</span>
+
+                  {/* Info */}
+                  <div className="p-4 space-y-2">
+                    <h3 className="font-display text-sm font-semibold text-foreground leading-tight line-clamp-2">
+                      {it.nome}
+                    </h3>
+
+                    {it.categoria && (
+                      <Badge variant="outline" className="text-[10px]">
+                        {it.categoria}
+                      </Badge>
+                    )}
+
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="font-display text-lg font-bold text-primary">
+                        {brl(it.preco_diaria || 0)}
+                        <span className="text-xs font-normal text-muted-foreground">/dia</span>
+                      </span>
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                        {it.quantidade_total || 0} un.
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center text-muted-foreground">
-                    <span className="text-xs">Qtd Total</span>
-                    <span className="font-medium text-foreground">{it.quantidade_total || 0}</span>
-                  </div>
-                </CardContent>
-                <CardFooter className="pt-2 border-t flex justify-end gap-1">
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-primary" onClick={() => abrirEditarItem(it)}>
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => {
-                      if (confirm("Excluir este item?")) excluirItemM.mutate(it.id);
-                    }}
-                    disabled={excluirItemM.isPending}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {pItens.maxPage > 1 && (
-            <Pagination className="mt-4">
+            <Pagination className="mt-8">
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious onClick={pItens.prev} className={pItens.currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"} />
                 </PaginationItem>
                 <PaginationItem>
                   <PaginationLink className="font-medium">
-                    {pItens.currentPage} / {pItens.maxPage}
+                    Página {pItens.currentPage} de {pItens.maxPage}
                   </PaginationLink>
                 </PaginationItem>
                 <PaginationItem>
@@ -314,79 +341,106 @@ export default function ItensLocacaoPage() {
               </PaginationContent>
             </Pagination>
           )}
-        </div>
+        </TabsContent>
 
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-            <div className="text-sm font-semibold mb-3">Kits</div>
-            <Input placeholder="Buscar kit…" value={qKits} onChange={(e) => setQKits(e.target.value)} className="w-[260px]" />
+        {/* ── TAB: Kits ── */}
+        <TabsContent value="kits" className="space-y-6">
+          <div className="flex flex-wrap gap-2">
+            <div className="relative max-w-xs flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar kit..."
+                value={qKits}
+                onChange={(e) => setQKits(e.target.value)}
+                className="pl-9"
+              />
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {kitsQ.isLoading && (
-              <div className="col-span-full py-10 text-center text-muted-foreground">
-                Carregando kits…
-              </div>
-            )}
-            {!kitsQ.isLoading && filteredKits.length === 0 ? (
-              <div className="col-span-full py-10 text-center text-muted-foreground">
-                Nenhum kit cadastrado
-              </div>
-            ) : null}
-            {pKits.currentData.map((k: KitRow) => (
-              <Card key={k.id} className="flex flex-col shadow-subtle hover:shadow-md transition-shadow bg-muted/10">
-                <CardHeader className="pb-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-base flex items-center"><Box className="w-4 h-4 mr-2 text-primary" /> {k.nome}</CardTitle>
+
+          {kitsQ.isLoading ? (
+            <div className="py-20 text-center text-muted-foreground">Carregando kits…</div>
+          ) : filteredKits.length === 0 ? (
+            <div className="py-20 text-center text-muted-foreground">
+              <Box className="mx-auto h-12 w-12 mb-3 opacity-30" />
+              Nenhum kit encontrado.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {pKits.currentData.map((k: KitRow) => (
+                <div
+                  key={k.id}
+                  className="card-lift group relative rounded-2xl border border-border bg-card overflow-hidden shadow-subtle"
+                >
+                  {/* Icon area */}
+                  <div className="relative h-24 bg-primary/5 flex items-center justify-center">
+                    <Box className="h-10 w-10 text-primary/30" />
+
+                    {/* Hover overlay actions */}
+                    <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors flex items-start justify-end p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => abrirEditarKit(k)}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/90 text-primary shadow-sm hover:bg-white transition-colors"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Excluir "${k.nome}"?`)) excluirKitM.mutate(k.id);
+                          }}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/90 text-destructive shadow-sm hover:bg-white transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="flex-1 space-y-3 text-sm pb-2">
-                  <div className="flex justify-between items-center text-muted-foreground">
-                    <span className="text-xs">Preço Total</span>
-                    <span className="font-medium text-foreground">{brl(k.preco_total || 0)}</span>
-                  </div>
-                  <div>
-                    <span className="text-xs block text-muted-foreground mb-1">Itens inclusos</span>
-                    <div className="text-xs flex flex-wrap gap-1">
-                      {(k.itens || []).map((i, idx) => (
-                        <Badge key={idx} variant="outline" className="text-muted-foreground bg-card">
-                          {i.quantidade}x {i.nome}
-                        </Badge>
-                      ))}
-                      {(k.itens || []).length === 0 ? <span className="text-muted-foreground">—</span> : null}
+
+                  {/* Info */}
+                  <div className="p-4 space-y-2">
+                    <h3 className="font-display text-sm font-semibold text-foreground leading-tight line-clamp-2 flex items-center gap-1">
+                      <Box className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                      {k.nome}
+                    </h3>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="font-display text-lg font-bold text-primary">
+                        {brl(k.preco_total || 0)}
+                      </span>
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                        {(k.itens || []).length} {(k.itens || []).length === 1 ? "item" : "itens"}
+                      </span>
                     </div>
+
+                    {(k.itens || []).length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {(k.itens || []).slice(0, 3).map((i, idx) => (
+                          <Badge key={idx} variant="outline" className="text-[10px] text-muted-foreground bg-card">
+                            {i.quantidade}x {i.nome}
+                          </Badge>
+                        ))}
+                        {(k.itens || []).length > 3 && (
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                            +{(k.itens || []).length - 3}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </CardContent>
-                <CardFooter className="pt-2 border-t flex justify-end gap-1">
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-primary" onClick={() => abrirEditarKit(k)}>
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => {
-                      if (confirm("Excluir este kit?")) excluirKitM.mutate(k.id);
-                    }}
-                    disabled={excluirKitM.isPending}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {pKits.maxPage > 1 && (
-            <Pagination className="mt-4">
+            <Pagination className="mt-8">
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious onClick={pKits.prev} className={pKits.currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"} />
                 </PaginationItem>
                 <PaginationItem>
                   <PaginationLink className="font-medium">
-                    {pKits.currentPage} / {pKits.maxPage}
+                    Página {pKits.currentPage} de {pKits.maxPage}
                   </PaginationLink>
                 </PaginationItem>
                 <PaginationItem>
@@ -395,8 +449,8 @@ export default function ItensLocacaoPage() {
               </PaginationContent>
             </Pagination>
           )}
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Modal Item */}
       <Dialog open={itemModalOpen} onOpenChange={setItemModalOpen}>
@@ -417,11 +471,21 @@ export default function ItensLocacaoPage() {
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground">Preço/diária *</label>
-              <CurrencyInput value={ilPreco} onChange={(v) => setIlPreco(v)} placeholder="0,00" />
+              <Input
+                inputMode="decimal"
+                placeholder="0,00"
+                value={ilPreco}
+                onChange={(e) => setIlPreco(e.target.value)}
+              />
             </div>
             <div className="sm:col-span-1">
               <label className="text-xs font-medium text-muted-foreground">Quantidade total</label>
-              <NumberInput integer value={ilQtdTotal} onChange={(v) => setIlQtdTotal(Math.trunc(v))} placeholder="1" />
+              <Input
+                inputMode="numeric"
+                placeholder="1"
+                value={ilQtdTotal}
+                onChange={(e) => setIlQtdTotal(e.target.value)}
+              />
             </div>
           </div>
 
@@ -451,7 +515,12 @@ export default function ItensLocacaoPage() {
             </div>
             <div className="sm:col-span-2">
               <label className="text-xs font-medium text-muted-foreground">Preço total do kit *</label>
-              <CurrencyInput value={kitPreco} onChange={(v) => setKitPreco(v)} placeholder="0,00" />
+              <Input
+                inputMode="decimal"
+                placeholder="0,00"
+                value={kitPreco}
+                onChange={(e) => setKitPreco(e.target.value)}
+              />
             </div>
 
             <div className="sm:col-span-2 rounded-2xl border border-border bg-card p-4">
@@ -479,7 +548,12 @@ export default function ItensLocacaoPage() {
                 </div>
                 <div className="w-[140px]">
                   <label className="text-xs font-medium text-muted-foreground">Qtd</label>
-                  <NumberInput integer value={kitSelQtd} onChange={(v) => setKitSelQtd(Math.trunc(v))} placeholder="1" />
+                  <Input
+                    inputMode="numeric"
+                    placeholder="1"
+                    value={kitSelQtd}
+                    onChange={(e) => setKitSelQtd(e.target.value)}
+                  />
                 </div>
                 <Button type="button" size="sm" variant="secondary" onClick={adicionarItemAoKit}>
                   + Adicionar
@@ -520,4 +594,3 @@ export default function ItensLocacaoPage() {
     </div>
   );
 }
-
