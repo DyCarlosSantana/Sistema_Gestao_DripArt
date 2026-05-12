@@ -78,7 +78,7 @@ export default function Home() {
     { name: "Nova Venda", path: "/pdv", icon: ShoppingCart, color: "text-emerald-500 bg-emerald-500/10", hoverBorder: "hover:border-emerald-500/50" },
     { name: "Nova Locação", path: "/locacoes", icon: Package, color: "text-cyan-500 bg-cyan-500/10", hoverBorder: "hover:border-cyan-500/50" },
     { name: "Encomendas", path: "/encomendas", icon: ClipboardList, color: "text-indigo-500 bg-indigo-500/10", hoverBorder: "hover:border-indigo-500/50" },
-    { name: "Recebimentos", path: "/fiado", icon: Wallet, color: "text-amber-500 bg-amber-500/10", hoverBorder: "hover:border-amber-500/50" },
+    { name: "Recebimentos", path: "/financeiro", icon: Wallet, color: "text-amber-500 bg-amber-500/10", hoverBorder: "hover:border-amber-500/50" },
     { name: "Orçamentos", path: "/orcamentos", icon: ClipboardList, color: "text-blue-500 bg-blue-500/10", hoverBorder: "hover:border-blue-500/50" },
     { name: "Agenda", path: "/agenda", icon: Calendar, color: "text-rose-500 bg-rose-500/10", hoverBorder: "hover:border-rose-500/50" }
   ];
@@ -113,90 +113,43 @@ export default function Home() {
         {/* LEFT COLUMN */}
         <div className="flex flex-col gap-6 min-h-0">
           
-          {/* Top Panels: Calendar & Tasks */}
+          {/* Top Panels: Notifications & Tasks */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-auto md:h-[280px] flex-none">
             
-            {/* Mini Calendar / Agenda (Moved here) */}
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-subtle flex flex-col h-full">
+            {/* Notifications */}
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-subtle flex flex-col">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-display text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-primary" />
-                  Agenda Diária
-                </h3>
-                <Link to="/agenda" className="text-[10px] text-muted-foreground hover:text-primary font-bold uppercase tracking-wider transition-colors bg-primary/10 px-2 py-1 rounded-md">Abrir Completa</Link>
+                <div className="flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-primary" />
+                  <h3 className="font-display text-sm font-semibold text-foreground">Avisos & Notificações</h3>
+                </div>
+                <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{notifications.length} novos</span>
               </div>
-              
-              <div className="flex-1 overflow-y-auto custom-scrollbar">
-                {/* Calendar Navigation */}
-                <div className="flex items-center justify-between mb-3">
-                  <button className="h-6 w-6 rounded border border-border bg-surface2 text-muted-foreground hover:bg-surface3 hover:text-foreground flex items-center justify-center transition-colors">
-                    &lsaquo;
-                  </button>
-                  <div className="font-display text-[13px] font-semibold text-foreground uppercase tracking-wide">
-                    {new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-                  </div>
-                  <button className="h-6 w-6 rounded border border-border bg-surface2 text-muted-foreground hover:bg-surface3 hover:text-foreground flex items-center justify-center transition-colors">
-                    &rsaquo;
-                  </button>
-                </div>
-
-                {/* Calendar Grid */}
-                <div className="grid grid-cols-7 gap-0.5 mb-4">
-                  {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map((day) => (
-                    <div key={day} className="text-center text-[9.5px] font-bold text-muted-foreground py-1">
-                      {day}
-                    </div>
-                  ))}
-                  
-                  {Array.from({ length: 30 }).map((_, i) => {
-                    const dayNum = i + 1;
-                    const isToday = dayNum === new Date().getDate();
-                    const hasEvent = d?.agenda_hoje?.some((a: any) => new Date(a.data_inicio).getDate() === dayNum);
-                    
-                    return (
-                      <div 
-                        key={i} 
-                        className={`relative text-center text-[11.5px] py-1.5 rounded cursor-pointer transition-colors
-                          ${isToday ? 'bg-primary/20 text-primary font-bold' : 'text-muted-foreground hover:bg-surface3 hover:text-foreground'}
-                          ${[0, 6].includes((i + 1) % 7) ? 'text-muted-foreground/60' : ''}
-                        `}
-                      >
-                        {dayNum}
-                        {hasEvent && (
-                          <div className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${isToday ? 'bg-primary' : 'bg-primary/60'}`}></div>
-                        )}
+              <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                {notifications.length === 0 ? (
+                   <div className="text-center text-[11px] text-muted-foreground py-8">Tudo tranquilo por aqui.</div>
+                ) : (
+                  notifications.map((n, i) => (
+                    <div key={i} className="flex items-start gap-3 p-3 rounded-lg border border-border bg-background">
+                      <div className={`mt-0.5 h-6 w-6 rounded-full flex items-center justify-center shrink-0 ${
+                        n.type === 'warning' ? 'bg-amber-500/10 text-amber-500' :
+                        n.type === 'error' ? 'bg-rose-500/10 text-rose-500' :
+                        'bg-emerald-500/10 text-emerald-500'
+                      }`}>
+                        <n.icon className="h-3.5 w-3.5" />
                       </div>
-                    );
-                  })}
-                </div>
-
-                {/* Agenda Preview List */}
-                <div className="flex flex-col gap-[7px] pt-[14px] border-t border-border">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground mb-1">
-                    HOJE
-                  </div>
-                  {!d?.agenda_hoje?.length ? (
-                    <div className="text-center text-[11px] text-muted-foreground py-4 flex flex-col items-center">
-                      Sua agenda livre hoje.
-                    </div>
-                  ) : (
-                    d.agenda_hoje.map((a: any) => (
-                      <div key={a.id} className="flex items-center gap-[9px] p-2 bg-surface2 border border-border rounded-md hover:border-border-hover transition-colors cursor-pointer">
-                        <div className="w-[7px] h-[7px] rounded-full shrink-0" style={{ backgroundColor: a.cor || 'hsl(var(--primary))' }} />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-[12px] font-semibold text-foreground truncate">{a.titulo}</div>
-                          <div className="text-[11px] text-muted-foreground mt-[1px] truncate">{a.cliente_nome || "Sem cliente"}</div>
-                        </div>
-                        <div className="text-[10.5px] font-semibold text-muted-foreground shrink-0">{a.hora_inicio}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] font-semibold text-foreground leading-tight">{n.title}</div>
+                        <div className="text-[10px] text-muted-foreground mt-1">{n.time}</div>
                       </div>
-                    ))
-                  )}
-                </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
             {/* Tasks */}
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-subtle flex flex-col h-full">
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-subtle flex flex-col">
               <div className="flex items-center gap-2 mb-4">
                 <ListTodo className="h-4 w-4 text-primary" />
                 <h3 className="font-display text-sm font-semibold text-foreground">Tarefas de Hoje</h3>
@@ -219,7 +172,7 @@ export default function Home() {
                 {tarefas.length === 0 ? (
                   <div className="text-center text-[11px] text-muted-foreground py-4">Sua lista de tarefas está vazia.</div>
                 ) : (
-                  tarefas.map((t: any) => (
+                  tarefas.map(t => (
                     <div key={t.id} className={`group flex items-start gap-2.5 p-2 rounded-lg border ${t.concluida ? 'bg-secondary/20 border-transparent opacity-50' : 'bg-background border-border hover:border-primary/20'} transition-all`}>
                       <button 
                         onClick={() => toggleTarefa.mutate({ id: t.id, concluida: t.concluida ? 0 : 1 })}
@@ -318,35 +271,82 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Notifications (Moved here) */}
+          {/* Mini Calendar / Agenda */}
           <div className="rounded-2xl border border-border bg-card p-5 shadow-subtle flex flex-col flex-1 min-h-0">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Bell className="h-4 w-4 text-primary" />
-                <h3 className="font-display text-sm font-semibold text-foreground">Avisos & Notificações</h3>
-              </div>
-              <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{notifications.length} novos</span>
+              <h3 className="font-display text-sm font-semibold text-foreground flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-primary" />
+                Agenda Diária
+              </h3>
+              <Link to="/agenda" className="text-[10px] text-muted-foreground hover:text-primary font-bold uppercase tracking-wider transition-colors bg-primary/10 px-2 py-1 rounded-md">Abrir Completa</Link>
             </div>
-            <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
-              {notifications.length === 0 ? (
-                 <div className="text-center text-[11px] text-muted-foreground py-8">Tudo tranquilo por aqui.</div>
-              ) : (
-                notifications.map((n, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg border border-border bg-background">
-                    <div className={`mt-0.5 h-6 w-6 rounded-full flex items-center justify-center shrink-0 ${
-                      n.type === 'warning' ? 'bg-amber-500/10 text-amber-500' :
-                      n.type === 'error' ? 'bg-rose-500/10 text-rose-500' :
-                      'bg-emerald-500/10 text-emerald-500'
-                    }`}>
-                      <n.icon className="h-3.5 w-3.5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[13px] font-semibold text-foreground leading-tight">{n.title}</div>
-                      <div className="text-[10px] text-muted-foreground mt-1">{n.time}</div>
-                    </div>
+            
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              {/* Calendar Navigation */}
+              <div className="flex items-center justify-between mb-3">
+                <button className="h-6 w-6 rounded border border-border bg-surface2 text-muted-foreground hover:bg-surface3 hover:text-foreground flex items-center justify-center transition-colors">
+                  &lsaquo;
+                </button>
+                <div className="font-display text-[13px] font-semibold text-foreground uppercase tracking-wide">
+                  {new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                </div>
+                <button className="h-6 w-6 rounded border border-border bg-surface2 text-muted-foreground hover:bg-surface3 hover:text-foreground flex items-center justify-center transition-colors">
+                  &rsaquo;
+                </button>
+              </div>
+
+              {/* Calendar Grid */}
+              <div className="grid grid-cols-7 gap-0.5 mb-4">
+                {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map((day) => (
+                  <div key={day} className="text-center text-[9.5px] font-bold text-muted-foreground py-1">
+                    {day}
                   </div>
-                ))
-              )}
+                ))}
+                
+                {Array.from({ length: 30 }).map((_, i) => {
+                  const dayNum = i + 1;
+                  const isToday = dayNum === new Date().getDate();
+                  const hasEvent = d?.agenda_hoje?.some((a: any) => new Date(a.data_inicio).getDate() === dayNum);
+                  
+                  return (
+                    <div 
+                      key={i} 
+                      className={`relative text-center text-[11.5px] py-1.5 rounded cursor-pointer transition-colors
+                        ${isToday ? 'bg-primary/20 text-primary font-bold' : 'text-muted-foreground hover:bg-surface3 hover:text-foreground'}
+                        ${[0, 6].includes((i + 1) % 7) ? 'text-muted-foreground/60' : ''}
+                      `}
+                    >
+                      {dayNum}
+                      {hasEvent && (
+                        <div className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${isToday ? 'bg-primary' : 'bg-primary/60'}`}></div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Agenda Preview List */}
+              <div className="flex flex-col gap-[7px] pt-[14px] border-t border-border">
+                <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground mb-1">
+                  HOJE
+                </div>
+                {!d?.agenda_hoje?.length ? (
+                  <div className="text-center text-[11px] text-muted-foreground py-4 flex flex-col items-center">
+                    Sua agenda está livre para hoje.
+                  </div>
+                ) : (
+                  d.agenda_hoje.map((a: any) => (
+                    <div key={a.id} className="flex items-center gap-[9px] p-2 bg-surface2 border border-border rounded-md hover:border-border-hover transition-colors cursor-pointer">
+                      <div className="w-[7px] h-[7px] rounded-full shrink-0" style={{ backgroundColor: a.cor || 'hsl(var(--primary))' }} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[12px] font-semibold text-foreground truncate">{a.titulo}</div>
+                        <div className="text-[11px] text-muted-foreground mt-[1px] truncate">{a.cliente_nome || "Sem cliente"}</div>
+                      </div>
+                      <div className="text-[10.5px] font-semibold text-muted-foreground shrink-0">{a.hora_inicio}</div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
 
