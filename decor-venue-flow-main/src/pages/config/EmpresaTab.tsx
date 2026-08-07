@@ -15,7 +15,7 @@ export default function EmpresaTab() {
     razao_social: "", inscricao_estadual: "", validade_orcamento: 7, segmento: "Locação de Móveis e Equipamentos",
     whatsapp: "", instagram: "", site: "", tiktok: "",
     cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "PA — Pará",
-    chaves_pix: "" // We will handle PIX differently if needed, but for now we store a string or JSON
+    chaves_pix: "", pix_tipo: "aleatoria", pix_identificador: "", pix_instituicao: ""
   });
 
   const [horarios, setHorarios] = useState<any[]>([]);
@@ -39,7 +39,10 @@ export default function EmpresaTab() {
         bairro: empresaData.bairro || "",
         cidade: empresaData.cidade || "",
         estado: empresaData.estado || "PA — Pará",
-        chaves_pix: empresaData.chaves_pix || ""
+        chaves_pix: empresaData.chaves_pix || "",
+        pix_tipo: empresaData.pix_tipo || "aleatoria",
+        pix_identificador: empresaData.pix_identificador || "",
+        pix_instituicao: empresaData.pix_instituicao || ""
       });
     }
   }, [empresaData]);
@@ -111,7 +114,7 @@ export default function EmpresaTab() {
                       const tid = showToast.loading("Enviando logo...");
                       api.uploadLogo(e.target.files[0])
                         .then((res) => { 
-                          setLocal(p => ({ ...p, logo_url: res.url || res.caminho || '' }));
+                          setLocal(p => ({ ...p, logo_url: res.logo || res.url || res.caminho || '' }));
                           showToast.success("Logo atualizada!", { id: tid }); 
                         })
                         .catch(() => showToast.error("Erro ao enviar logo", { id: tid }));
@@ -128,7 +131,7 @@ export default function EmpresaTab() {
           <div className="section-label mt-6">Dados Cadastrais</div>
           <div className="form-grid col-2">
             <div className="form-group">
-              <label className="form-label">Nome Fantasia (Padrão: Configuracoes.tsx mantido? Ajustando para manual)</label>
+              <label className="form-label">Razão Social / Nome Fantasia</label>
               <input className="form-input" type="text" name="razao_social" value={local.razao_social} onChange={h} placeholder="Razão Social Ltda." />
             </div>
             <div className="form-group">
@@ -242,20 +245,39 @@ export default function EmpresaTab() {
               <div className="card-subtitle">Usadas em PDFs de orçamento e comprovantes de venda.</div>
             </div>
           </div>
-          <button className="btn btn-green btn-sm"><QrCode className="h-4 w-4" /> Adicionar Chave</button>
         </div>
         <div className="card-body">
-          <div className="pix-item">
-            <span className="pix-type">CNPJ</span>
-            <span className="pix-key">59.363.536/0001-14</span>
-            <span className="pix-default">Principal</span>
-            <button className="btn btn-ghost btn-xs">Editar</button>
-            <button className="btn btn-danger btn-xs">Remover</button>
+          {local.chaves_pix && (
+            <div className="pix-item mb-4">
+              <span className="pix-type uppercase">{local.pix_tipo}</span>
+              <span className="pix-key">{local.chaves_pix}</span>
+              <span className="pix-default">Principal</span>
+            </div>
+          )}
+          <div className="form-grid col-2">
+            <div className="form-group">
+              <label className="form-label">Tipo de Chave</label>
+              <select className="form-select" name="pix_tipo" value={local.pix_tipo} onChange={h}>
+                <option value="cpf_cnpj">CPF/CNPJ</option>
+                <option value="telefone">Telefone</option>
+                <option value="email">E-mail</option>
+                <option value="aleatoria">Chave Aleatória</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Chave PIX Principal</label>
+              <input className="form-input" name="chaves_pix" value={local.chaves_pix} onChange={h} placeholder="Insira a chave..." />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Nome do Titular (Beneficiário)</label>
+              <input className="form-input" name="pix_identificador" value={local.pix_identificador} onChange={h} placeholder="Nome completo ou Razão Social" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Instituição Financeira (Banco)</label>
+              <input className="form-input" name="pix_instituicao" value={local.pix_instituicao} onChange={h} placeholder="Ex: Nubank, Itaú..." />
+            </div>
           </div>
-          <div className="form-group mt-4">
-            <label className="form-label">Gerenciar PIX (texto simples por enquanto)</label>
-            <input className="form-input" name="chaves_pix" value={local.chaves_pix} onChange={h} placeholder="Cole as chaves aqui..." />
-          </div>
+          <span className="form-hint mt-2 block">Esta chave será incluída automaticamente nos PDFs de orçamento e faturamento.</span>
         </div>
         <div className="card-foot">
           <button className="btn btn-primary" onClick={handleSaveAll} disabled={saveEmpresaM.isPending}>

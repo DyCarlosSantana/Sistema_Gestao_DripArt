@@ -52,7 +52,7 @@ export default function NotificacoesTab() {
   };
 
   return (
-    <div className="space-y-6 max-w-[800px]">
+    <div className="w-full">
       <div className="card">
         <div className="card-head" style={{ paddingBottom: "16px", borderBottom: "1px solid var(--border)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>

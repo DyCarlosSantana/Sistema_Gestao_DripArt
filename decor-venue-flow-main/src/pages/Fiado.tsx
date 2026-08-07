@@ -172,7 +172,7 @@ export default function FiadoPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setPayModal({ open: false, id: null })}>Cancelar</Button>
             <Button onClick={() => {
-              if (payModal.id) receberFiadoM.mutate({ id: payModal.id, forma_pagamento: payForma });
+              if (payModal.id) receberFiadoM.mutate({ id: payModal.id, forma_pagamento: payForma, origem: payModal.origem });
               setPayModal({ open: false, id: null });
             }}>Confirmar Pagamento</Button>
           </DialogFooter>

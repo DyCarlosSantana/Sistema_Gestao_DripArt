@@ -2,6 +2,14 @@ from flask import Flask, request, jsonify, send_file, render_template, make_resp
 from database import get_db, init_db
 from auth import require_auth, require_admin, gerar_token, get_current_user, get_empresa_id
 import datetime, os, json
+from concurrent.futures import ThreadPoolExecutor
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+
+email_executor = ThreadPoolExecutor(max_workers=3)
 
 # Carrega variáveis de ambiente do .env (se existir)
 try:
@@ -99,23 +107,71 @@ app.json = DycoreJSONProvider(app)
 
 def get_config(eid: int = 1):
     db = get_db()
+    
+    # 1. configuracoes
     rows = db.execute("SELECT chave, valor FROM configuracoes WHERE empresa_id=?", (eid,)).fetchall()
+    cfg = {r['chave']: r['valor'] for r in rows}
+    
+    # 2. config_empresa
+    try:
+        emp_row = db.execute("SELECT * FROM config_empresa WHERE empresa_id=?", (eid,)).fetchone()
+        if emp_row:
+            emp = dict(emp_row)
+            for k, v in emp.items():
+                if k != 'empresa_id' and v:
+                    cfg[k] = v
+    except:
+        pass
+        
+    # 3. empresas
+    try:
+        empresa = db.execute("SELECT * FROM empresas WHERE id=?", (eid,)).fetchone()
+        if empresa:
+            e = dict(empresa)
+            if e.get('nome'): cfg['empresa_nome'] = cfg.get('empresa_nome') or e['nome']
+            if e.get('cnpj'): cfg['empresa_cnpj'] = cfg.get('empresa_cnpj') or e['cnpj']
+            if e.get('telefone'): cfg['empresa_telefone'] = cfg.get('empresa_telefone') or e['telefone']
+            if e.get('endereco'): cfg['empresa_endereco'] = cfg.get('empresa_endereco') or e['endereco']
+            if e.get('email'): cfg['empresa_email'] = cfg.get('empresa_email') or e['email']
+            if e.get('logo'): cfg['empresa_logo'] = cfg.get('empresa_logo') or e['logo']
+    except:
+        pass
+        
     db.close()
-    return {r['chave']: r['valor'] for r in rows}
+    
+    result = dict(cfg)
+    for key in list(cfg.keys()):
+        if key.startswith('empresa_'):
+            short = key[len('empresa_'):]
+            if not result.get(short):
+                result[short] = cfg[key]
+                
+    return result
+
 
 def proximo_numero_orcamento(eid: int = 1):
     db = get_db()
-    row = db.execute("SELECT COUNT(*) as c FROM orcamentos WHERE empresa_id=?", (eid,)).fetchone()
-    n = (row['c'] or 0) + 1
+    rows = db.execute("SELECT numero FROM orcamentos WHERE empresa_id=?", (eid,)).fetchall()
+    max_num = 0
+    for r in rows:
+        try:
+            num = int(r['numero'].split('-')[1])
+            if num > max_num: max_num = num
+        except: pass
     db.close()
-    return f"ORC-{n:04d}"
+    return f"ORC-{max_num + 1:04d}"
 
 def proximo_numero_encomenda(eid: int = 1):
     db = get_db()
-    row = db.execute("SELECT COUNT(*) as c FROM encomendas WHERE empresa_id=?", (eid,)).fetchone()
-    n = (row['c'] or 0) + 1
+    rows = db.execute("SELECT numero FROM encomendas WHERE empresa_id=?", (eid,)).fetchall()
+    max_num = 0
+    for r in rows:
+        try:
+            num = int(r['numero'].split('-')[1])
+            if num > max_num: max_num = num
+        except: pass
     db.close()
-    return f"ENC-{n:04d}"
+    return f"ENC-{max_num + 1:04d}"
 
 # ─── EMPRESAS (MULTI-TENANCY) ────────────────────────────────────────────
 
@@ -166,7 +222,7 @@ def registrar_empresa():
             (empresa_id, 'logo_path', ''),
             (empresa_id, 'orcamento_validade_dias', '7'),
         ]
-        db.executemany("INSERT OR IGNORE INTO configuracoes (empresa_id, chave, valor) VALUES (?,?,?)", configs_padrao)
+        db.executemany("INSERT INTO configuracoes (empresa_id, chave, valor) VALUES (?,?,?) ON CONFLICT (empresa_id, chave) DO NOTHING", configs_padrao)
         db.commit()
 
         user = {'id': user_id, 'nome': d.get('nome_admin', nome), 'email': email, 'role': 'admin', 'empresa_id': empresa_id}
@@ -198,8 +254,8 @@ def atualizar_empresa():
     d = request.get_json(force=True, silent=True) or {}
     db = get_db()
     db.execute(
-        "UPDATE empresas SET nome=?, cnpj=?, email=?, telefone=? WHERE id=?",
-        (d.get('nome',''), d.get('cnpj',''), d.get('email',''), d.get('telefone',''), eid)
+        "UPDATE empresas SET nome=?, cnpj=?, email=?, telefone=?, endereco=?, logo=? WHERE id=?",
+        (d.get('nome',''), d.get('cnpj',''), d.get('email',''), d.get('telefone',''), d.get('endereco',''), d.get('logo',''), eid)
     )
     db.commit()
     empresa = row_to_dict(db.execute("SELECT * FROM empresas WHERE id=?", (eid,)).fetchone())
@@ -273,17 +329,24 @@ def listar_cargos():
 @require_auth
 @require_admin
 def criar_cargo():
-    eid = get_empresa_id()
-    d = request.get_json(force=True, silent=True) or {}
-    db = get_db()
-    cur = db.execute("INSERT INTO cargos (empresa_id, nome, descricao) VALUES (?,?,?)", (eid, d.get('nome',''), d.get('descricao','')))
-    cargo_id = cur.lastrowid
-    for p in d.get('permissoes', []):
-        db.execute("INSERT INTO cargo_permissoes (cargo_id, permissao) VALUES (?,?)", (cargo_id, p))
-    db.commit()
-    row = db.execute("SELECT * FROM cargos WHERE id=?", (cargo_id,)).fetchone()
-    db.close()
-    return jsonify(row_to_dict(row)), 201
+    try:
+        eid = get_empresa_id()
+        d = request.get_json(force=True, silent=True) or {}
+        db = get_db()
+        cur = db.execute("INSERT INTO cargos (empresa_id, nome, descricao) VALUES (?,?,?)", (eid, d.get('nome',''), d.get('descricao','')))
+        cargo_id = cur.lastrowid
+        for p in d.get('permissoes', []):
+            db.execute("INSERT INTO cargo_permissoes (cargo_id, permissao) VALUES (?,?)", (cargo_id, p))
+        db.commit()
+        row = db.execute("SELECT * FROM cargos WHERE id=?", (cargo_id,)).fetchone()
+        result = row_to_dict(row)
+        p_rows = db.execute("SELECT permissao FROM cargo_permissoes WHERE cargo_id=?", (cargo_id,)).fetchall()
+        result['permissoes'] = [p['permissao'] for p in p_rows]
+        db.close()
+        return jsonify(result), 201
+    except Exception as e:
+        print(f"Error creating cargo: {e}")
+        return jsonify({'erro': str(e)}), 500
 
 @app.route('/api/cargos/<int:id>', methods=['PUT', 'DELETE'])
 @require_auth
@@ -305,8 +368,11 @@ def gerenciar_cargo(id):
             db.execute("INSERT INTO cargo_permissoes (cargo_id, permissao) VALUES (?,?)", (id, p))
         db.commit()
         row = db.execute("SELECT * FROM cargos WHERE id=?", (id,)).fetchone()
+        result = row_to_dict(row)
+        p_rows = db.execute("SELECT permissao FROM cargo_permissoes WHERE cargo_id=?", (id,)).fetchall()
+        result['permissoes'] = [p['permissao'] for p in p_rows]
         db.close()
-        return jsonify(row_to_dict(row))
+        return jsonify(result)
 
 @app.route('/api/me', methods=['GET'])
 @require_auth
@@ -929,7 +995,7 @@ def update_config(table, data, allowed_keys):
         params.append(eid)
         db = get_db()
         # Create row if not exists
-        db.execute(f"INSERT OR IGNORE INTO {table} (empresa_id) VALUES (?)", (eid,))
+        db.execute(f"INSERT INTO {table} (empresa_id) VALUES (?) ON CONFLICT (empresa_id) DO NOTHING", (eid,))
         db.execute(f"UPDATE {table} SET {','.join(updates)} WHERE empresa_id=?", params)
         db.commit()
         db.close()
@@ -937,7 +1003,7 @@ def update_config(table, data, allowed_keys):
 @app.route('/api/config/empresa', methods=['GET', 'PUT'])
 @require_auth
 def config_empresa():
-    keys = ['logo_url', 'razao_social', 'inscricao_estadual', 'validade_orcamento', 'segmento', 'whatsapp', 'instagram', 'site', 'tiktok', 'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'chaves_pix']
+    keys = ['logo_url', 'razao_social', 'inscricao_estadual', 'validade_orcamento', 'segmento', 'whatsapp', 'instagram', 'site', 'tiktok', 'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'chaves_pix', 'pix_tipo', 'pix_identificador', 'pix_instituicao']
     if request.method == 'PUT':
         update_config('config_empresa', request.get_json(silent=True) or {}, keys)
     row = get_or_create_config('config_empresa', keys)
@@ -955,7 +1021,7 @@ def config_notificacoes():
 @app.route('/api/config/integracoes', methods=['GET', 'PUT'])
 @require_auth
 def config_integracoes():
-    keys = ['whatsapp_ativo', 'gdrive_ativo', 'asaas_ativo', 'sheets_ativo']
+    keys = ['whatsapp_ativo', 'gdrive_ativo', 'asaas_ativo', 'sheets_ativo', 'whatsapp_url', 'whatsapp_instance', 'whatsapp_api_token', 'gateway_pagamento', 'gateway_api_key', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass']
     if request.method == 'PUT':
         update_config('config_integracoes', request.get_json(silent=True) or {}, keys)
     row = get_or_create_config('config_integracoes', keys)
@@ -1732,8 +1798,8 @@ def criar_item_locacao():
     d = request.get_json(force=True, silent=True) or {}
     db = get_db()
     cur = db.execute(
-        "INSERT INTO itens_locacao (empresa_id, nome, descricao, categoria, preco_diaria, quantidade_total) VALUES (?,?,?,?,?,?)",
-        (eid, d.get('nome',''), d.get('descricao',''), d.get('categoria',''), d.get('preco_diaria', 0), d.get('quantidade_total',1))
+        "INSERT INTO itens_locacao (empresa_id, nome, descricao, categoria, preco_diaria, quantidade_total, imagem_url) VALUES (?,?,?,?,?,?,?)",
+        (eid, d.get('nome',''), d.get('descricao',''), d.get('categoria',''), d.get('preco_diaria', 0), d.get('quantidade_total',1), d.get('imagem_url', ''))
     )
     db.commit()
     row = db.execute("SELECT * FROM itens_locacao WHERE id=?", (cur.lastrowid,)).fetchone()
@@ -1747,8 +1813,8 @@ def atualizar_item_locacao(id):
     d = request.get_json(force=True, silent=True) or {}
     db = get_db()
     db.execute(
-        "UPDATE itens_locacao SET nome=?, descricao=?, categoria=?, preco_diaria=?, quantidade_total=? WHERE id=? AND empresa_id=?",
-        (d.get('nome',''), d.get('descricao',''), d.get('categoria',''), d.get('preco_diaria', 0), d.get('quantidade_total',1), id, eid)
+        "UPDATE itens_locacao SET nome=?, descricao=?, categoria=?, preco_diaria=?, quantidade_total=?, imagem_url=? WHERE id=? AND empresa_id=?",
+        (d.get('nome',''), d.get('descricao',''), d.get('categoria',''), d.get('preco_diaria', 0), d.get('quantidade_total',1), d.get('imagem_url', ''), id, eid)
     )
     db.commit()
     row = db.execute("SELECT * FROM itens_locacao WHERE id=?", (id,)).fetchone()
@@ -2105,35 +2171,40 @@ def todas_encomendas():
 @app.route('/api/encomendas', methods=['POST'])
 @require_auth
 def criar_encomenda():
-    eid = get_empresa_id()
-    d = request.get_json(force=True, silent=True) or {}
-    db = get_db()
-    row_c = db.execute("SELECT COUNT(*) as c FROM encomendas WHERE empresa_id=?", (eid,)).fetchone()
-    numero = f"ENC-{(row_c['c'] or 0) + 1:04d}"
-    cur = db.execute(
-        "INSERT INTO encomendas (empresa_id, numero, cliente_id, cliente_nome, descricao, status, data_pedido, data_entrega, total, sinal, obs, valor_entrada) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-        (eid, numero, d.get('cliente_id'), d.get('cliente_nome',''), d.get('descricao',''),
-         d.get('status','pedido'), d.get('data_pedido', datetime.date.today().isoformat()),
-         d.get('data_entrega',''), d.get('total',0), d.get('valor_entrada', 0), d.get('obs',''), d.get('valor_entrada', 0))
-    )
-    enc_id = cur.lastrowid
-
-    valor_entrada = float(d.get('valor_entrada', 0))
-    if valor_entrada > 0:
-        db.execute(
-            "INSERT INTO vendas (empresa_id, cliente_id, cliente_nome, tipo, subtotal, total, forma_pagamento, status, obs) VALUES (?, ?, ?, 'sinal', ?, ?, 'dinheiro', 'pago', ?)",
-            (eid, d.get('cliente_id'), d.get('cliente_nome',''), valor_entrada, valor_entrada, f"Sinal / Entrada ({numero})")
+    import traceback
+    try:
+        eid = get_empresa_id()
+        d = request.get_json(force=True, silent=True) or {}
+        db = get_db()
+        numero = proximo_numero_encomenda(eid)
+        cur = db.execute(
+            "INSERT INTO encomendas (empresa_id, numero, cliente_id, cliente_nome, descricao, status, data_pedido, data_entrega, total, sinal, obs, valor_entrada) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            (eid, numero, d.get('cliente_id'), d.get('cliente_nome',''), d.get('descricao',''),
+             d.get('status','pedido'), d.get('data_pedido', datetime.date.today().isoformat()),
+             d.get('data_entrega',''), d.get('total',0), d.get('valor_entrada', 0), d.get('obs',''), d.get('valor_entrada', 0))
         )
-    if d.get('data_entrega'):
-        db.execute(
-            "INSERT INTO agenda (empresa_id, titulo, tipo, data_inicio, data_fim, hora_inicio, hora_fim, cliente_nome, descricao, status, encomenda_id, cor) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-            (eid, f"Entrega: {d.get('cliente_nome','')}", 'encomenda', d.get('data_entrega',''), d.get('data_entrega',''),
-             '08:00', '18:00', d.get('cliente_nome',''), d.get('descricao','')[:60], 'pendente', cur.lastrowid, '#534AB7')
-        )
-    db.commit()
-    row = db.execute("SELECT * FROM encomendas WHERE id=?", (cur.lastrowid,)).fetchone()
-    db.close()
-    return jsonify(row_to_dict(row)), 201
+        enc_id = cur.lastrowid
+    
+        valor_entrada = float(d.get('valor_entrada', 0))
+        if valor_entrada > 0:
+            db.execute(
+                "INSERT INTO vendas (empresa_id, cliente_id, cliente_nome, tipo, subtotal, total, forma_pagamento, status, obs) VALUES (?, ?, ?, 'sinal', ?, ?, 'dinheiro', 'pago', ?)",
+                (eid, d.get('cliente_id'), d.get('cliente_nome',''), valor_entrada, valor_entrada, f"Sinal / Entrada ({numero})")
+            )
+        if d.get('data_entrega'):
+            db.execute(
+                "INSERT INTO agenda (empresa_id, titulo, tipo, data_inicio, data_fim, hora_inicio, hora_fim, cliente_nome, descricao, status, encomenda_id, cor) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                (eid, f"Entrega: {d.get('cliente_nome','')}", 'encomenda', d.get('data_entrega',''), d.get('data_entrega',''),
+                 '08:00', '18:00', d.get('cliente_nome',''), d.get('descricao','')[:60], 'pendente', enc_id, '#534AB7')
+            )
+        db.commit()
+        row = db.execute("SELECT * FROM encomendas WHERE id=?", (enc_id,)).fetchone()
+        db.close()
+        return jsonify(row_to_dict(row)), 201
+    except Exception as e:
+        import sys
+        print(traceback.format_exc(), file=sys.stderr)
+        return jsonify({'erro': 'ERRO INTERNO', 'detalhes': str(e), 'trace': traceback.format_exc()}), 500
 
 @app.route('/api/encomendas/<int:id>/status', methods=['PUT'])
 @require_auth
@@ -2240,6 +2311,20 @@ def exportar_relatorio():
     data_fim = request.args.get('data_fim', datetime.date.today().isoformat())
     db = get_db()
     eid = get_empresa_id()
+    
+    # Detalhes (Lista)
+    vendas_lista = rows_to_list(db.execute(
+        "SELECT criado_em, cliente_nome, tipo, forma_pagamento, total FROM vendas WHERE empresa_id=? AND date(criado_em) BETWEEN ? AND ? AND status='pago' ORDER BY criado_em ASC",
+        (eid, data_ini, data_fim)).fetchall())
+        
+    locacoes_lista = rows_to_list(db.execute(
+        "SELECT criado_em, cliente_nome, total FROM locacoes WHERE empresa_id=? AND date(criado_em) BETWEEN ? AND ? ORDER BY criado_em ASC",
+        (eid, data_ini, data_fim)).fetchall())
+        
+    despesas_lista = rows_to_list(db.execute(
+        "SELECT data, descricao, categoria, valor FROM despesas WHERE empresa_id=? AND data BETWEEN ? AND ? ORDER BY data ASC",
+        (eid, data_ini, data_fim)).fetchall())
+
     vendas = rows_to_list(db.execute(
         "SELECT tipo, COUNT(*) as qtd, SUM(total) as total FROM vendas WHERE empresa_id=? AND date(criado_em) BETWEEN ? AND ? GROUP BY tipo",
         (eid, data_ini, data_fim)).fetchall())
@@ -2253,8 +2338,9 @@ def exportar_relatorio():
     total_saida = db.execute("SELECT COALESCE(SUM(valor),0) as v FROM despesas WHERE empresa_id=? AND data BETWEEN ? AND ?", (eid, data_ini, data_fim)).fetchone()['v']
     db.close()
     config = get_config(eid)
-    path = gerar_relatorio_pdf(data_ini, data_fim, vendas, formas, despesas, total_entrada, total_saida, config)
-    return send_file(path, as_attachment=True, download_name=os.path.basename(path))
+    
+    fp = gerar_relatorio_pdf(data_ini, data_fim, vendas, formas, despesas, total_entrada, total_saida, config, vendas_lista, locacoes_lista, despesas_lista)
+    return send_file(fp, as_attachment=True, download_name=os.path.basename(fp))
 
 
 # ─── ORÇAMENTO → VENDA ────────────────────────────────────────────────────────
@@ -2484,23 +2570,54 @@ def relatorio_despesas_categoria():
     return jsonify(rows)
 
 @app.route('/api/fiado')
+@require_auth
 def listar_fiado():
+    eid = get_empresa_id()
     db = get_db()
     status_filter = request.args.get('status', '')
+    
+    date_cond = ""
     if status_filter == 'atrasado':
-        rows = rows_to_list(db.execute(
-            "SELECT * FROM vendas WHERE status='fiado' AND data_vencimento < date('now') ORDER BY data_vencimento ASC"
-        ).fetchall())
+        date_cond = " AND data_vencimento < date('now')"
     elif status_filter == 'vencendo':
-        rows = rows_to_list(db.execute(
-            "SELECT * FROM vendas WHERE status='fiado' AND data_vencimento BETWEEN date('now') AND date('now','+7 days') ORDER BY data_vencimento ASC"
-        ).fetchall())
-    else:
-        rows = rows_to_list(db.execute(
-            "SELECT * FROM vendas WHERE status='fiado' ORDER BY data_vencimento ASC NULLS LAST"
-        ).fetchall())
+        date_cond = " AND data_vencimento BETWEEN date('now') AND date('now','+7 days')"
+        
+    # Vendas fiado
+    vendas = rows_to_list(db.execute(
+        f"SELECT id, cliente_nome, total, data_vencimento, status, 'venda' as origem, criado_em, forma_pagamento FROM vendas WHERE empresa_id=? AND status='fiado'{date_cond}", (eid,)
+    ).fetchall())
+    
+    # Locacoes fiado
+    # Map data_devolucao to data_vencimento
+    loc_date_cond = ""
+    if status_filter == 'atrasado':
+        loc_date_cond = " AND data_devolucao < date('now')"
+    elif status_filter == 'vencendo':
+        loc_date_cond = " AND data_devolucao BETWEEN date('now') AND date('now','+7 days')"
+        
+    locacoes = rows_to_list(db.execute(
+        f"SELECT id, cliente_nome, total, data_devolucao as data_vencimento, status, 'locacao' as origem, criado_em, forma_pagamento FROM locacoes WHERE empresa_id=? AND forma_pagamento='Fiado' AND status='ativo'{loc_date_cond}", (eid,)
+    ).fetchall())
+    
+    # Orcamentos aprovados
+    orc_date_cond = ""
+    if status_filter == 'atrasado':
+        orc_date_cond = " AND validade < date('now')"
+    elif status_filter == 'vencendo':
+        orc_date_cond = " AND validade BETWEEN date('now') AND date('now','+7 days')"
+        
+    orcamentos = rows_to_list(db.execute(
+        f"SELECT id, cliente_nome, total, validade as data_vencimento, status, 'orcamento' as origem, criado_em, 'Pendente' as forma_pagamento FROM orcamentos WHERE empresa_id=? AND status='aprovado'{orc_date_cond}", (eid,)
+    ).fetchall())
+    
     db.close()
-    return jsonify(rows)
+    
+    todos = vendas + locacoes + orcamentos
+    # Sort by vencimento
+    todos.sort(key=lambda x: x.get('data_vencimento') or '9999-99-99')
+    
+    return jsonify(todos)
+
 
 @app.route('/api/vendas/<int:id>/receber', methods=['PUT'])
 def receber_fiado(id):
@@ -2698,6 +2815,106 @@ def converter_orcamento_locacao(id):
     return jsonify({'ok': True, 'locacao_id': loc_id})
 
 
+# ─── SERVIR DOCUMENTOS PDF ────────────────────────────────────────────────────
+
+@app.route('/api/docs/<path:filename>', methods=['GET'])
+@require_auth
+def servir_documento(filename):
+    docs_dir = os.path.join(BASE_DIR, 'docs')
+    filepath = os.path.join(docs_dir, filename)
+    if not os.path.exists(filepath):
+        return jsonify({'erro': 'Arquivo não encontrado'}), 404
+    return send_file(filepath, as_attachment=False, mimetype='application/pdf')
+
+# ─── EMAIL ────────────────────────────────────────────────────────────────────
+
+@app.route('/api/email/enviar', methods=['POST'])
+@require_auth
+def enviar_email():
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.base import MIMEBase
+    from email.mime.text import MIMEText
+    from email import encoders
+
+    d = request.get_json(force=True, silent=True) or {}
+    destinatario = d.get('destinatario','').strip()
+    assunto      = d.get('assunto','Documento Dycore').strip()
+    mensagem     = d.get('mensagem','Segue em anexo o documento solicitado.').strip()
+    arquivo_nome = d.get('arquivo','')   # nome do arquivo em /docs/
+
+    if not destinatario:
+        return jsonify({'erro': 'Destinatário obrigatório'}), 400
+
+    eid = get_empresa_id()
+    db = get_db()
+    smtp_config = None
+    try:
+        smtp_config = db.execute("SELECT smtp_host, smtp_port, smtp_user, smtp_pass FROM config_integracoes WHERE empresa_id=?", (eid,)).fetchone()
+    except Exception as e:
+        print(f"Erro ao buscar SMTP do banco: {e}")
+    finally:
+        db.close()
+    
+    if smtp_config and dict(smtp_config).get('smtp_host') and dict(smtp_config).get('smtp_user'):
+        smtp_host = dict(smtp_config)['smtp_host']
+        smtp_port = int(dict(smtp_config)['smtp_port']) if dict(smtp_config)['smtp_port'] else 587
+        smtp_user = dict(smtp_config)['smtp_user']
+        smtp_pass = dict(smtp_config)['smtp_pass']
+    else:
+        smtp_host = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+        smtp_port = int(os.environ.get('SMTP_PORT', '587'))
+        smtp_user = os.environ.get('SMTP_USER', '')
+        smtp_pass = os.environ.get('SMTP_PASS', '')
+
+    if not smtp_user or not smtp_pass:
+        # Fallback to system default (Zero Configuration)
+        smtp_host = os.environ.get('DYCORE_SMTP_HOST', '')
+        smtp_port = int(os.environ.get('DYCORE_SMTP_PORT', '587'))
+        smtp_user = os.environ.get('DYCORE_SMTP_USER', '')
+        smtp_pass = os.environ.get('DYCORE_SMTP_PASS', '')
+        
+        if not smtp_user or not smtp_pass:
+            error_msg = (
+                "O e-mail real não pôde ser enviado porque o administrador do sistema "
+                "ainda não configurou as credenciais SMTP globais no arquivo .env "
+                "(DYCORE_SMTP_HOST, DYCORE_SMTP_USER, DYCORE_SMTP_PASS). "
+                "Por favor, configure o ambiente do servidor para habilitar o envio real."
+            )
+            print(f"[DYCORE EMAIL ERRO] {error_msg}")
+            return jsonify({'erro': error_msg}), 500
+
+    docs_dir = os.path.join(BASE_DIR, 'docs')
+    email_executor.submit(_enviar_email_bg, smtp_host, smtp_port, smtp_user, smtp_pass, destinatario, assunto, mensagem, arquivo_nome, docs_dir)
+    return jsonify({'ok': True, 'mensagem': f'O e-mail para {destinatario} foi colocado na fila de envio em plano de fundo.'})
+
+def _enviar_email_bg(smtp_host, smtp_port, smtp_user, smtp_pass, destinatario, assunto, mensagem, arquivo_nome, docs_dir):
+    try:
+        msg = MIMEMultipart()
+        msg['From']    = smtp_user
+        msg['To']      = destinatario
+        msg['Subject'] = assunto
+        msg.attach(MIMEText(mensagem, 'plain', 'utf-8'))
+
+        if arquivo_nome:
+            filepath = os.path.join(docs_dir, arquivo_nome)
+            if os.path.exists(filepath):
+                with open(filepath, 'rb') as f:
+                    part = MIMEBase('application', 'octet-stream')
+                    part.set_payload(f.read())
+                encoders.encode_base64(part)
+                part.add_header('Content-Disposition', f'attachment; filename="{arquivo_nome}"')
+                msg.attach(part)
+
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, [destinatario], msg.as_string())
+        print(f"[DYCORE EMAIL BG] Sucesso ao enviar email para {destinatario}")
+    except Exception as e:
+        print(f"[DYCORE EMAIL BG] ERRO ao enviar para {destinatario}: {str(e)}")
+
 # ─── FRONTEND (React App) ─────────────────────────────────────────────────────
 
 @app.route('/', defaults={'path': ''})
@@ -2724,3 +2941,61 @@ if __name__ == '__main__':
     fazer_backup()
     print("Dycore SaaS iniciando em http://localhost:5000")
     app.run(debug=False, port=5000, host='0.0.0.0')
+
+
+
+@app.route('/api/whatsapp/enviar', methods=['POST'])
+@require_auth
+def enviar_whatsapp():
+    import requests
+    from utils import base_dir
+    d = request.get_json(force=True, silent=True) or {}
+    destinatario = d.get('numero', '').strip()
+    mensagem = d.get('mensagem', '').strip()
+    arquivo_nome = d.get('arquivo', '').strip()
+    if not destinatario:
+        return jsonify({'erro': 'Numero de destino obrigatorio'}), 400
+    eid = get_empresa_id()
+    db = get_db()
+    wa_config = db.execute("SELECT whatsapp_ativo, whatsapp_url, whatsapp_instance, whatsapp_api_token FROM config_integracoes WHERE empresa_id=?", (eid,)).fetchone()
+    db.close()
+    if not wa_config or not wa_config['whatsapp_ativo']:
+        return jsonify({'erro': 'WhatsApp nao esta habilitado nas integracoes'}), 400
+    url = wa_config['whatsapp_url']
+    instance = wa_config['whatsapp_instance']
+    token = wa_config['whatsapp_api_token']
+    if not url or not instance or not token:
+        return jsonify({'erro': 'Credenciais de WhatsApp nao configuradas.'}), 500
+    import urllib.parse
+    import base64
+    import os
+    docs_dir = os.path.join(base_dir, 'docs')
+    caminho_arquivo = os.path.join(docs_dir, arquivo_nome)
+    if arquivo_nome and os.path.exists(caminho_arquivo):
+        base_api = urllib.parse.urljoin(url, f"/message/sendMedia/{instance}")
+        with open(caminho_arquivo, 'rb') as f:
+            pdf_data = f.read()
+        b64 = base64.b64encode(pdf_data).decode('utf-8')
+        media_msg = f"data:application/pdf;base64,{b64}"
+        payload = {
+            "number": destinatario,
+            "options": { "delay": 1200, "presence": "composing" },
+            "mediaMessage": { "mediatype": "document", "caption": mensagem, "media": media_msg, "fileName": arquivo_nome }
+        }
+    else:
+        base_api = urllib.parse.urljoin(url, f"/message/sendText/{instance}")
+        payload = {
+            "number": destinatario,
+            "options": { "delay": 1200, "presence": "composing" },
+            "textMessage": { "text": mensagem }
+        }
+    headers = { "apikey": token, "Content-Type": "application/json" }
+    try:
+        r = requests.post(base_api, json=payload, headers=headers, timeout=15)
+        if r.status_code in (200, 201, 202):
+            return jsonify({"ok": True, "message": "Mensagem enviada com sucesso"})
+        else:
+            return jsonify({"erro": f"Falha na API Evolution: {r.text}"}), r.status_code
+    except Exception as e:
+        return jsonify({"erro": f"Erro de conexao com WhatsApp API: {e}"}), 500
+

@@ -97,6 +97,9 @@ export default {
           lime: "hsl(var(--trillo-lime))",
           dark: "hsl(var(--trillo-dark))",
         },
+        surface2: "hsl(var(--surface2))",
+        surface3: "hsl(var(--surface3))",
+        "border-hover": "hsl(var(--border-hover))",
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -1,718 +1,495 @@
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable, Image
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
-from reportlab.pdfgen import canvas
-import os
-import datetime
-import base64
-from io import BytesIO
-
 from reportlab.graphics.shapes import Drawing
 from reportlab.graphics.barcode.qr import QrCodeWidget
+import os, datetime, base64
+from io import BytesIO
+from PIL import Image as PILImage
 
-PURPLE = colors.HexColor('#534AB7')
-PURPLE_LIGHT = colors.HexColor('#EEEDFE')
-GRAY = colors.HexColor('#888780')
-GRAY_LIGHT = colors.HexColor('#F1EFE8')
-TEXT = colors.HexColor('#2C2C2A')
+# --- PALETA PREMIUM ---
+BRAND    = colors.HexColor('#E8186D')
+BRAND_DK = colors.HexColor('#B01050')
+BRAND_LT = colors.HexColor('#FDF2F7')
+DARK     = colors.HexColor('#1A1A2E')
+GRAY     = colors.HexColor('#6B7280')
+GRAY_LT  = colors.HexColor('#F9FAFB')
+WHITE    = colors.white
 
-def _crc16(payload):
+# Estilos Globais
+P_H1 = ParagraphStyle('H1', fontName='Helvetica-Bold', fontSize=18, textColor=DARK, leading=22)
+P_H2 = ParagraphStyle('H2', fontName='Helvetica-Bold', fontSize=12, textColor=DARK, leading=16)
+P_NOR = ParagraphStyle('NOR', fontName='Helvetica', fontSize=10, textColor=GRAY, leading=14)
+P_NOR_B = ParagraphStyle('NOR_B', fontName='Helvetica-Bold', fontSize=10, textColor=DARK, leading=14)
+P_TH_L = ParagraphStyle('TH_L', fontName='Helvetica-Bold', fontSize=10, textColor=WHITE, leading=14)
+P_TH_C = ParagraphStyle('TH_C', fontName='Helvetica-Bold', fontSize=10, textColor=WHITE, alignment=TA_CENTER)
+P_TH_R = ParagraphStyle('TH_R', fontName='Helvetica-Bold', fontSize=10, textColor=WHITE, alignment=TA_RIGHT)
+P_R = ParagraphStyle('R', fontName='Helvetica', fontSize=10, textColor=GRAY, alignment=TA_RIGHT)
+P_R_B = ParagraphStyle('R_B', fontName='Helvetica-Bold', fontSize=10, textColor=DARK, alignment=TA_RIGHT)
+P_CENTER = ParagraphStyle('CENTER', fontName='Helvetica', fontSize=10, textColor=GRAY, alignment=TA_CENTER)
+P_BRAND = ParagraphStyle('BRAND', fontName='Helvetica-Bold', fontSize=10, textColor=BRAND, alignment=TA_RIGHT)
+
+def get_base64_image(b64str, width=3*cm, height=3*cm):
+    try:
+        if "," in b64str: b64str = b64str.split(",")[1]
+        img_data = base64.b64decode(b64str)
+        img = PILImage.open(BytesIO(img_data))
+        aspect = img.width / img.height
+        calc_height = width / aspect
+        if calc_height > height:
+            calc_width = height * aspect
+            calc_height = height
+        else:
+            calc_width = width
+        return Image(BytesIO(img_data), width=calc_width, height=calc_height)
+    except:
+        return None
+
+def criar_cabecalho(config, titulo, doc_ref):
+    logo_flow = None
+    if config.get('logo'):
+        logo_flow = get_base64_image(config['logo'])
+    
+    endereco = config.get('endereco', '')
+    telefone = config.get('telefone', '')
+    nome = config.get('nome', 'Sua Empresa')
+    cnpj = config.get('cnpj', '')
+    
+    info_empresa = f"<b>{nome}</b>"
+    if cnpj: info_empresa += f"<br/>CNPJ: {cnpj}"
+    if telefone: info_empresa += f"<br/>Tel: {telefone}"
+    if endereco: info_empresa += f"<br/>{endereco}"
+
+    info_p = Paragraph(info_empresa, P_NOR)
+    titulo_p = Paragraph(f"<font size='16'><b>{titulo}</b></font><br/><font size='10' color='#E8186D'>{doc_ref}</font>", P_R_B)
+
+    header_data = [[logo_flow if logo_flow else "", info_p, titulo_p]]
+    col_widths = [4*cm, 8.5*cm, 5*cm] if logo_flow else [0.5*cm, 11*cm, 6*cm]
+    t = Table(header_data, colWidths=col_widths)
+    t.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('ALIGN', (2,0), (2,0), 'RIGHT'),
+    ]))
+    return t
+
+def render_qr_code(link):
+    qrw = QrCodeWidget(link)
+    b = qrw.getBounds()
+    w = b[2]-b[0]
+    h = b[3]-b[1]
+    d = Drawing(w, h, transform=[70/w,0,0,70/h,0,0])
+    d.add(qrw)
+    return d
+
+def crc16(payload):
     crc = 0xFFFF
-    for char in payload:
-        crc ^= ord(char) << 8
+    for byte in payload.encode('utf-8'):
+        crc ^= byte << 8
         for _ in range(8):
-            if crc & 0x8000:
+            if (crc & 0x8000):
                 crc = (crc << 1) ^ 0x1021
             else:
                 crc = crc << 1
             crc &= 0xFFFF
     return f"{crc:04X}"
 
-def _get_logo_image(config, width=4*cm, height=1.5*cm):
-    logo_data = config.get('logo_path', '')
-    if logo_data and logo_data.startswith('data:image'):
+import unicodedata
+
+def remove_accents(input_str):
+    nfkd_form = unicodedata.normalize('NFKD', input_str)
+    return u"".join([c for c in nfkd_form if not unicodedata.combining(c)])
+
+def build_pix_payload(chave, nome="Recebedor", cidade="Cidade", valor=0, pix_tipo="aleatoria"):
+    chave = str(chave).strip()
+    if pix_tipo == "telefone":
+        import re
+        chave = re.sub(r'\D', '', chave)
+        if len(chave) in [10, 11]:
+            chave = "+55" + chave
+    elif pix_tipo == "cpf_cnpj":
+        import re
+        chave = re.sub(r'\D', '', chave)
+        
+    nome = remove_accents(str(nome)[:25].strip().upper())
+    cidade = remove_accents(str(cidade)[:15].strip().upper())
+    if not nome: nome = "RECEBEDOR"
+    if not cidade: cidade = "CIDADE"
+    merch_acc = f"0014br.gov.bcb.pix01{len(chave):02d}{chave}"
+    payload = "000201" + f"26{len(merch_acc):02d}{merch_acc}" + "52040000" + "5303986"
+    
+    if valor and float(valor) > 0:
+        val_str = f"{float(valor):.2f}"
+        payload += f"54{len(val_str):02d}{val_str}"
+        
+    payload += "5802BR" + f"59{len(nome):02d}{nome}" + f"60{len(cidade):02d}{cidade}" + "62070503***" + "6304"
+    return payload + crc16(payload)
+
+def adicionar_rodape(story, doc_ref, config, valor=0):
+    chave_pix = config.get('chaves_pix')
+    pix_tipo = config.get('pix_tipo', 'aleatoria')
+    pix_identificador = config.get('pix_identificador')
+    pix_instituicao = config.get('pix_instituicao')
+    
+    if chave_pix:
         try:
-            header, encoded = logo_data.split(",", 1)
-            img_data = base64.b64decode(encoded)
-            img_io = BytesIO(img_data)
-            return Image(img_io, width=width, height=height, kind='proportional')
-        except Exception:
-            return None
-    return None
+            nome_empresa = pix_identificador or config.get('empresa_nome') or config.get('nome') or 'Empresa'
+            cidade_empresa = config.get('empresa_cidade') or config.get('cidade') or 'Cidade'
+            payload = build_pix_payload(chave_pix, nome_empresa, cidade_empresa, valor, pix_tipo)
+            qr_pix = render_qr_code(payload)
+            
+            info_html = f"<b>Pagamento via PIX</b><br/>Chave: {chave_pix}"
+            if pix_identificador:
+                info_html += f"<br/>Titular: {pix_identificador}"
+            if pix_instituicao:
+                info_html += f"<br/>Instituição: {pix_instituicao}"
+            info_html += "<br/>Abra o app do seu banco e escaneie o código QR."
+            
+            t_pix = Table([
+                [qr_pix, Paragraph(info_html, P_NOR)]
+            ], colWidths=[2.5*cm, 14.9*cm])
+        except Exception as e:
+            t_pix = Table([
+                ["", Paragraph(f"<b>Pagamento via PIX</b><br/>Chave: {chave_pix}<br/><i>(Erro ao gerar QR Code: {str(e)})</i>", P_NOR)]
+            ], colWidths=[2.5*cm, 14.9*cm])
+    else:
+        t_pix = Table([
+            ["", Paragraph("<b>Pagamento via PIX</b><br/><i>Chave PIX não configurada nas Configurações da Empresa.</i>", P_NOR)]
+        ], colWidths=[2.5*cm, 14.9*cm])
 
-def gerar_brcode_pix(chave, valor_float, nome="Empresa", cidade="BR"):
-    """ Gera payload estático PIX EMVCo """
-    chave = str(chave).strip().replace(' ','').replace('-','').replace('(','').replace(')','')
-    if not chave: return None
-    valor = f"{valor_float:.2f}"
+    t_pix.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('BACKGROUND', (0,0), (-1,-1), GRAY_LT),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.lightgrey),
+        ('PADDING', (0,0), (-1,-1), 6),
+    ]))
     
-    p_format = "000201"
-    p_merchant_acc = f"0014BR.GOV.BCB.PIX01{len(chave):02d}{chave}"
-    p_merchant_acc = f"26{len(p_merchant_acc):02d}{p_merchant_acc}"
-    p_merchant_cat = "52040000"
-    p_currency = "5303986"
-    p_amount = f"54{len(valor):02d}{valor}" if valor_float > 0 else ""
-    p_country = "5802BR"
-    
-    nome_fmt = nome[:25].upper()
-    p_name = f"59{len(nome_fmt):02d}{nome_fmt}"
-    
-    cidade_fmt = cidade[:15].upper()
-    p_city = f"60{len(cidade_fmt):02d}{cidade_fmt}"
-    
-    txid = "PGTO"
-    p_additional = f"05{len(txid):02d}{txid}"
-    p_additional = f"62{len(p_additional):02d}{p_additional}"
-    
-    payload_sem_crc = f"{p_format}{p_merchant_acc}{p_merchant_cat}{p_currency}{p_amount}{p_country}{p_name}{p_city}{p_additional}6304"
-    return payload_sem_crc + _crc16(payload_sem_crc)
+    story.append(t_pix)
+    story.append(Spacer(1, 10))
 
-def criar_bloco_pix(config, total):
-    pix_key = config.get('empresa_whatsapp') or config.get('empresa_cnpj')
-    if not pix_key or str(pix_key).strip() == "": return None
-    try:
-        pix_payload = gerar_brcode_pix(pix_key, total, config.get('empresa_nome', 'Empresa'))
-        if not pix_payload: return None
-        qr = QrCodeWidget(pix_payload)
-        qr.barWidth = 2.5 * cm
-        qr.barHeight = 2.5 * cm
-        qr_drawing = Drawing(2.5*cm, 2.5*cm)
-        qr_drawing.add(qr)
-        
-        from reportlab.lib.styles import ParagraphStyle
-        from reportlab.platypus import Paragraph, Table, TableStyle
-        
-        pix_info = [
-            Paragraph("<b>PAGAMENTO VIA PIX</b>", ParagraphStyle('p1', fontSize=10, textColor=PURPLE, fontName='Helvetica-Bold')),
-            Paragraph(f"Chave (Celular/CNPJ): {pix_key}", ParagraphStyle('p2', fontSize=8, textColor=GRAY, fontName='Helvetica')),
-            Paragraph("Escaneie o código ao lado ou use a chave se preferir.", ParagraphStyle('p3', fontSize=8, textColor=GRAY, fontName='Helvetica'))
-        ]
-        
-        qr_table = Table([[qr_drawing, pix_info]], colWidths=[3*cm, 14*cm])
-        qr_table.setStyle(TableStyle([
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('BACKGROUND', (0,0), (-1,-1), PURPLE_LIGHT),
-            ('ROUNDEDCORNERS', [6]),
-            ('PADDING', (0,0), (-1,-1), 8),
-            ('LEFTPADDING', (0,0), (0,0), 10),
-            ('LEFTPADDING', (1,0), (1,0), 5)
-        ]))
-        return qr_table
-    except Exception:
-        return None
+def formatar_moeda(valor):
+    if valor is None: valor = 0
+    return f"R$ {float(valor):,.2f}".replace(',','_').replace('.',',').replace('_','.')
 
-def gerar_orcamento_pdf(orcamento, itens, config, logo_path=None):
-    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs')
-    os.makedirs(output_dir, exist_ok=True)
-    filename = f"orcamento_{orcamento['numero']}.pdf"
-    filepath = os.path.join(output_dir, filename)
-
-    doc = SimpleDocTemplate(
-        filepath,
-        pagesize=A4,
-        rightMargin=2*cm, leftMargin=2*cm,
-        topMargin=2*cm, bottomMargin=2*cm
-    )
-
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle('title', fontSize=20, textColor=PURPLE, fontName='Helvetica-Bold', spaceAfter=2)
-    sub_style = ParagraphStyle('sub', fontSize=9, textColor=GRAY, fontName='Helvetica')
-    label_style = ParagraphStyle('label', fontSize=8, textColor=GRAY, fontName='Helvetica')
-    value_style = ParagraphStyle('value', fontSize=10, textColor=TEXT, fontName='Helvetica')
-    bold_style = ParagraphStyle('bold', fontSize=10, textColor=TEXT, fontName='Helvetica-Bold')
+def gerar_orcamento_pdf(orcamento, itens, config):
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs')
+    os.makedirs(out, exist_ok=True)
+    fp = os.path.join(out, f"orcamento_{orcamento['numero']}.pdf")
+    doc = SimpleDocTemplate(fp, pagesize=A4, rightMargin=1.8*cm, leftMargin=1.8*cm, topMargin=1.5*cm, bottomMargin=2*cm)
 
     story = []
+    story.append(criar_cabecalho(config, "ORÇAMENTO", orcamento['numero']))
+    story.append(Spacer(1, 0.8*cm))
 
-    # Header
-    logo_img = _get_logo_image(config)
-    left_cell = []
-    if logo_img:
-        left_cell.append(logo_img)
-        left_cell.append(Spacer(1, 0.2*cm))
-    left_cell.append(Paragraph(f"<b>{config.get('empresa_nome','DripArt')}</b>", title_style))
-
-    header_data = [[
-        left_cell,
-        Paragraph(
-            f"{config.get('empresa_cnpj','')}<br/>"
-            f"{('Tel: ' + config['empresa_telefone']) if config.get('empresa_telefone') else ''}<br/>"
-            f"{('WA: ' + config['empresa_whatsapp']) if config.get('empresa_whatsapp') else ''}<br/>"
-            f"{config.get('empresa_email','')}<br/>"
-            f"{('@' + config['empresa_instagram']) if config.get('empresa_instagram') else ''}",
-            ParagraphStyle('info_right', fontSize=8, textColor=GRAY, alignment=TA_RIGHT)
-        )
-    ]]
-    header_table = Table(header_data, colWidths=[9*cm, 8*cm])
-    header_table.setStyle(TableStyle([
-        ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 12),
-    ]))
-    story.append(header_table)
-    story.append(HRFlowable(width="100%", thickness=1, color=PURPLE))
-    story.append(Spacer(1, 0.4*cm))
-
-    # Título do documento
-    tipo_label = "ORÇAMENTO"
-    story.append(Paragraph(tipo_label, ParagraphStyle('doc_title', fontSize=14, textColor=PURPLE, fontName='Helvetica-Bold', spaceAfter=4)))
-    story.append(Paragraph(f"Nº {orcamento['numero']}  ·  Emitido em {_fmt_date(orcamento.get('criado_em',''))}  ·  Válido até {_fmt_date(orcamento.get('validade',''))}", sub_style))
-    story.append(Spacer(1, 0.5*cm))
-
-    # Cliente
-    cliente_data = [
-        [Paragraph("CLIENTE", label_style)],
-        [Paragraph(orcamento.get('cliente_nome','Não informado'), bold_style)],
+    cli_data = [
+        [Paragraph("<b>Dados do Cliente</b>", P_H2)],
+        [Paragraph(f"<b>Nome:</b> {orcamento.get('cliente_nome', 'Cliente Padrão')}", P_NOR)],
+        [Paragraph(f"<b>Emissão:</b> {datetime.datetime.now().strftime('%d/%m/%Y')} &nbsp;&nbsp;&nbsp; <b>Validade:</b> {orcamento.get('validade', 'N/A')}", P_NOR)]
     ]
-    if orcamento.get('obs'):
-        cliente_data.append([Paragraph(f"Obs: {orcamento['obs']}", sub_style)])
-    cliente_table = Table(cliente_data, colWidths=[17*cm])
-    cliente_table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), PURPLE_LIGHT),
-        ('ROUNDEDCORNERS', [6]),
-        ('LEFTPADDING', (0,0), (-1,-1), 10),
-        ('RIGHTPADDING', (0,0), (-1,-1), 10),
-        ('TOPPADDING', (0,0), (0,0), 8),
-        ('BOTTOMPADDING', (0,-1), (-1,-1), 8),
+    t_cli = Table(cli_data, colWidths=[17.4*cm])
+    t_cli.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), GRAY_LT),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.lightgrey),
+        ('PADDING', (0,0), (-1,-1), 8),
+        ('BOTTOMPADDING', (0,0), (-1,0), 6),
     ]))
-    story.append(cliente_table)
-    story.append(Spacer(1, 0.5*cm))
+    story.append(t_cli)
+    story.append(Spacer(1, 0.8*cm))
 
-    # Itens
-    item_header = ['#', 'Descrição', 'Qtd', 'Valor Unit.', 'Subtotal']
-    item_rows = [item_header]
-    for i, item in enumerate(itens, 1):
-        item_rows.append([
-            str(i),
-            item['descricao'],
-            _fmt_num(item['quantidade']),
-            _fmt_brl(item['preco_unitario']),
-            _fmt_brl(item['subtotal']),
-        ])
-
-    items_table = Table(item_rows, colWidths=[0.8*cm, 9.2*cm, 2*cm, 2.5*cm, 2.5*cm])
-    items_table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), PURPLE),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,0), (-1,0), 9),
-        ('FONTSIZE', (0,1), (-1,-1), 9),
-        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, GRAY_LIGHT]),
-        ('ALIGN', (2,0), (-1,-1), 'RIGHT'),
-        ('ALIGN', (0,0), (0,-1), 'CENTER'),
-        ('GRID', (0,0), (-1,-1), 0.3, GRAY),
-        ('TOPPADDING', (0,0), (-1,-1), 5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-        ('LEFTPADDING', (0,0), (-1,-1), 6),
-        ('RIGHTPADDING', (0,0), (-1,-1), 6),
-    ]))
-    story.append(items_table)
-    story.append(Spacer(1, 0.4*cm))
-
-    # Totais
-    subtotal = float(orcamento.get('subtotal', 0))
-    desconto = float(orcamento.get('desconto', 0))
-    total = float(orcamento.get('total', 0))
-    totais_data = []
-    totais_data.append(['Subtotal', _fmt_brl(subtotal)])
-    if desconto > 0:
-        totais_data.append(['Desconto', f"- {_fmt_brl(desconto)}"])
-    totais_data.append(['TOTAL', _fmt_brl(total)])
-
-    totais_table = Table(totais_data, colWidths=[13.5*cm, 3.5*cm])
-    style = [
-        ('ALIGN', (1,0), (1,-1), 'RIGHT'),
-        ('FONTSIZE', (0,0), (-1,-1), 9),
-        ('TOPPADDING', (0,0), (-1,-1), 3),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-        ('RIGHTPADDING', (1,0), (1,-1), 6),
-    ]
-    last = len(totais_data) - 1
-    style += [
-        ('FONTNAME', (0, last), (-1, last), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, last), (-1, last), 11),
-        ('TEXTCOLOR', (0, last), (-1, last), PURPLE),
-        ('LINEABOVE', (0, last), (-1, last), 1, PURPLE),
-    ]
-    totais_table.setStyle(TableStyle(style))
-    story.append(totais_table)
-    story.append(Spacer(1, 1*cm))
-
-    qr_block = criar_bloco_pix(config, float(total if 'total' in locals() else 0))
-    if qr_block:
-        story.append(qr_block)
-        story.append(Spacer(1, 0.5*cm))
-
-    # Rodapé
-    story.append(HRFlowable(width="100%", thickness=0.5, color=GRAY_LIGHT))
+    story.append(Paragraph("<b>Itens do Orçamento</b>", P_H2))
     story.append(Spacer(1, 0.2*cm))
-    story.append(Paragraph(
-        f"Documento gerado em {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')} · {config.get('empresa_nome','DripArt')}",
-        ParagraphStyle('footer', fontSize=7, textColor=GRAY, alignment=TA_CENTER)
-    ))
+    
+    th = [Paragraph('<b>Produto/Serviço</b>', P_TH_L), Paragraph('<b>Qtd</b>', P_TH_C), Paragraph('<b>V. Unit</b>', P_TH_R), Paragraph('<b>Subtotal</b>', P_TH_R)]
+    td = [th]
+    for i in itens:
+        nome = i.get('descricao', i.get('nome', 'Item'))
+        qtd = float(i.get('quantidade', 1))
+        v = float(i.get('preco_unitario', 0))
+        td.append([
+            Paragraph(nome, P_NOR),
+            Paragraph(str(qtd), P_CENTER),
+            Paragraph(formatar_moeda(v), P_R),
+            Paragraph(formatar_moeda(qtd*v), P_R_B)
+        ])
+    
+    t_itens = Table(td, colWidths=[9.4*cm, 2*cm, 3*cm, 3*cm])
+    t_itens.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), DARK),
+        ('TEXTCOLOR', (0,0), (-1,0), WHITE),
+        ('ALIGN', (1,0), (1,-1), 'CENTER'),
+        ('ALIGN', (2,0), (-1,-1), 'RIGHT'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
+        ('ROWBACKGROUNDS', (0,1), (-1,-1), [WHITE, GRAY_LT]),
+        ('PADDING', (0,0), (-1,-1), 6),
+    ]))
+    story.append(t_itens)
+    story.append(Spacer(1, 0.5*cm))
+
+    total = float(orcamento.get('total', 0))
+    t_tot = Table([[Paragraph("<b>TOTAL GERAL</b>", P_H2), Paragraph(f"<b>{formatar_moeda(total)}</b>", P_BRAND)]], colWidths=[12.4*cm, 5*cm])
+    t_tot.setStyle(TableStyle([
+        ('ALIGN', (1,0), (1,0), 'RIGHT'),
+        ('LINEABOVE', (0,0), (-1,-1), 1, BRAND),
+        ('PADDING', (0,0), (-1,-1), 8),
+    ]))
+    story.append(t_tot)
+    
+    obs = orcamento.get('obs') or orcamento.get('observacoes')
+    if obs:
+        story.append(Spacer(1, 0.8*cm))
+        story.append(Paragraph("<b>Observações:</b>", P_H2))
+        story.append(Paragraph(obs, P_NOR))
+
+    adicionar_rodape(story, orcamento['numero'], config, total)
 
     doc.build(story)
-    return filepath
-
+    return fp
 
 def gerar_nota_venda_pdf(venda, itens, config):
-    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs')
-    os.makedirs(output_dir, exist_ok=True)
-    filename = f"nota_venda_{venda['id']}.pdf"
-    filepath = os.path.join(output_dir, filename)
-
-    doc = SimpleDocTemplate(
-        filepath,
-        pagesize=A4,
-        rightMargin=2*cm, leftMargin=2*cm,
-        topMargin=2*cm, bottomMargin=2*cm
-    )
-
-    styles = getSampleStyleSheet()
-    sub_style = ParagraphStyle('sub', fontSize=9, textColor=GRAY, fontName='Helvetica')
-    label_style = ParagraphStyle('label', fontSize=8, textColor=GRAY)
-    bold_style = ParagraphStyle('bold', fontSize=10, fontName='Helvetica-Bold', textColor=TEXT)
-
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs')
+    os.makedirs(out, exist_ok=True)
+    fp = os.path.join(out, f"nota_venda_{venda['id']}.pdf")
+    doc = SimpleDocTemplate(fp, pagesize=A4, rightMargin=1.8*cm, leftMargin=1.8*cm, topMargin=1.5*cm, bottomMargin=2*cm)
     story = []
-
-    # Header igual ao orçamento
-    logo_img = _get_logo_image(config)
-    left_cell = []
-    if logo_img:
-        left_cell.append(logo_img)
-        left_cell.append(Spacer(1, 0.2*cm))
-    left_cell.append(Paragraph(f"<b>{config.get('empresa_nome','DripArt')}</b>", ParagraphStyle('th', fontSize=20, textColor=PURPLE, fontName='Helvetica-Bold')))
-
-    header_data = [[
-        left_cell,
-        Paragraph(
-            f"{config.get('empresa_cnpj','')}<br/>"
-            f"{config.get('empresa_telefone','')}"
-            f"{(' · WA: ' + config['empresa_whatsapp']) if config.get('empresa_whatsapp') else ''}<br/>"
-            f"{config.get('empresa_email','')}"
-            f"{(' · @' + config['empresa_instagram']) if config.get('empresa_instagram') else ''}",
-            ParagraphStyle('tr', fontSize=8, textColor=GRAY, alignment=TA_RIGHT)
-        )
-    ]]
-    ht = Table(header_data, colWidths=[9*cm, 8*cm])
-    ht.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('BOTTOMPADDING',(0,0),(-1,-1),12)]))
-    story.append(ht)
-    story.append(HRFlowable(width="100%", thickness=1, color=PURPLE))
-    story.append(Spacer(1, 0.4*cm))
-
-    story.append(Paragraph("COMPROVANTE DE VENDA",
-        ParagraphStyle('dt', fontSize=14, textColor=PURPLE, fontName='Helvetica-Bold', spaceAfter=4)))
-    story.append(Paragraph(
-        f"Venda #{venda['id']}  ·  {_fmt_date(venda.get('criado_em',''))}  ·  Pagamento: {venda.get('forma_pagamento','')}",
-        sub_style))
-    story.append(Spacer(1, 0.4*cm))
-
-    if venda.get('cliente_nome'):
-        ct = Table([[Paragraph("CLIENTE", label_style)],[Paragraph(venda['cliente_nome'], bold_style)]],
-                   colWidths=[17*cm])
-        ct.setStyle(TableStyle([
-            ('BACKGROUND',(0,0),(-1,-1),PURPLE_LIGHT),
-            ('LEFTPADDING',(0,0),(-1,-1),10),('RIGHTPADDING',(0,0),(-1,-1),10),
-            ('TOPPADDING',(0,0),(0,0),8),('BOTTOMPADDING',(0,-1),(-1,-1),8),
-        ]))
-        story.append(ct)
-        story.append(Spacer(1, 0.5*cm))
-
-    # Itens
-    rows = [['#','Descrição','Qtd','Valor Unit.','Subtotal']]
-    for i, item in enumerate(itens, 1):
-        rows.append([str(i), item['descricao'], _fmt_num(item['quantidade']),
-                     _fmt_brl(item['preco_unitario']), _fmt_brl(item['subtotal'])])
-    t = Table(rows, colWidths=[0.8*cm, 9.2*cm, 2*cm, 2.5*cm, 2.5*cm])
-    t.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,0),PURPLE),('TEXTCOLOR',(0,0),(-1,0),colors.white),
-        ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),9),
-        ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white, GRAY_LIGHT]),
-        ('ALIGN',(2,0),(-1,-1),'RIGHT'),('ALIGN',(0,0),(0,-1),'CENTER'),
-        ('GRID',(0,0),(-1,-1),0.3,GRAY),
-        ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5),
-        ('LEFTPADDING',(0,0),(-1,-1),6),('RIGHTPADDING',(0,0),(-1,-1),6),
+    
+    doc_ref = f"PDV-{venda['id']:04d}"
+    story.append(criar_cabecalho(config, "COMPROVANTE DE VENDA", doc_ref))
+    story.append(Spacer(1, 0.8*cm))
+    
+    cli_data = [
+        [Paragraph("<b>Detalhes da Transação</b>", P_H2)],
+        [Paragraph(f"<b>Cliente:</b> {venda.get('cliente_nome', 'Avulso')} &nbsp;&nbsp;&nbsp; <b>Data:</b> {str(venda.get('criado_em', ''))[:10]}", P_NOR)],
+    ]
+    t_cli = Table(cli_data, colWidths=[17.4*cm])
+    t_cli.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), GRAY_LT),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.lightgrey),
+        ('PADDING', (0,0), (-1,-1), 8),
     ]))
-    story.append(t)
-    story.append(Spacer(1, 0.4*cm))
-
-    subtotal = float(venda.get('subtotal', 0))
-    desconto = float(venda.get('desconto', 0))
+    story.append(t_cli)
+    story.append(Spacer(1, 0.5*cm))
+    
+    th = [Paragraph('<b>Produto</b>', P_TH_L), Paragraph('<b>Qtd</b>', P_TH_C), Paragraph('<b>V. Unit</b>', P_TH_R), Paragraph('<b>Subtotal</b>', P_TH_R)]
+    td = [th]
+    for i in itens:
+        nome = i.get('descricao', i.get('nome', 'Item'))
+        qtd = float(i.get('quantidade', 1))
+        v = float(i.get('preco_unitario', 0))
+        td.append([
+            Paragraph(nome, P_NOR),
+            Paragraph(str(qtd), P_CENTER),
+            Paragraph(formatar_moeda(v), P_R),
+            Paragraph(formatar_moeda(qtd*v), P_R_B)
+        ])
+    t_itens = Table(td, colWidths=[9.4*cm, 2*cm, 3*cm, 3*cm])
+    t_itens.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), DARK),
+        ('TEXTCOLOR', (0,0), (-1,0), WHITE),
+        ('ALIGN', (1,0), (1,-1), 'CENTER'),
+        ('ALIGN', (2,0), (-1,-1), 'RIGHT'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
+        ('ROWBACKGROUNDS', (0,1), (-1,-1), [WHITE, GRAY_LT]),
+        ('PADDING', (0,0), (-1,-1), 6),
+    ]))
+    story.append(t_itens)
+    story.append(Spacer(1, 0.5*cm))
+    
     total = float(venda.get('total', 0))
-    td = [['Subtotal', _fmt_brl(subtotal)]]
-    if desconto > 0:
-        td.append(['Desconto', f"- {_fmt_brl(desconto)}"])
-    td.append(['TOTAL PAGO', _fmt_brl(total)])
-    tt = Table(td, colWidths=[13.5*cm, 3.5*cm])
-    last = len(td)-1
-    tt.setStyle(TableStyle([
-        ('ALIGN',(1,0),(1,-1),'RIGHT'),('FONTSIZE',(0,0),(-1,-1),9),
-        ('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),3),
-        ('RIGHTPADDING',(1,0),(1,-1),6),
-        ('FONTNAME',(0,last),(-1,last),'Helvetica-Bold'),
-        ('FONTSIZE',(0,last),(-1,last),11),
-        ('TEXTCOLOR',(0,last),(-1,last),PURPLE),
-        ('LINEABOVE',(0,last),(-1,last),1,PURPLE),
+    t_tot = Table([[Paragraph("<b>TOTAL</b>", P_H2), Paragraph(f"<b>{formatar_moeda(total)}</b>", P_BRAND)]], colWidths=[12.4*cm, 5*cm])
+    t_tot.setStyle(TableStyle([
+        ('ALIGN', (1,0), (1,0), 'RIGHT'),
+        ('LINEABOVE', (0,0), (-1,-1), 1, BRAND),
+        ('PADDING', (0,0), (-1,-1), 8),
     ]))
-    story.append(tt)
-    story.append(Spacer(1,1*cm))
-    story.append(HRFlowable(width="100%",thickness=0.5,color=GRAY_LIGHT))
-    story.append(Spacer(1,0.2*cm))
-    story.append(Paragraph(
-        f"Documento gerado em {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')} · {config.get('empresa_nome','DripArt')}",
-        ParagraphStyle('footer', fontSize=7, textColor=GRAY, alignment=TA_CENTER)
-    ))
+    story.append(t_tot)
+
+    adicionar_rodape(story, doc_ref, config, total)
 
     doc.build(story)
-    return filepath
-
-
-def _fmt_brl(v):
-    try:
-        return f"R$ {float(v):,.2f}".replace(',','X').replace('.',',').replace('X','.')
-    except:
-        return "R$ 0,00"
-
-def _fmt_date(s):
-    if not s:
-        return ""
-    try:
-        d = str(s)[:10]
-        parts = d.split('-')
-        if len(parts) == 3:
-            return f"{parts[2]}/{parts[1]}/{parts[0]}"
-        return d
-    except:
-        return str(s)
-
-def _fmt_num(v):
-    try:
-        f = float(v)
-        return str(int(f)) if f == int(f) else f"{f:.2f}"
-    except:
-        return str(v)
-
+    return fp
 
 def gerar_pdf_locacao(locacao, itens, config):
-    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs')
-    os.makedirs(output_dir, exist_ok=True)
-    filename = f"locacao_{locacao['id']}.pdf"
-    filepath = os.path.join(output_dir, filename)
-
-    doc = SimpleDocTemplate(filepath, pagesize=A4,
-        rightMargin=2*cm, leftMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
-
-    styles = getSampleStyleSheet()
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs')
+    os.makedirs(out, exist_ok=True)
+    fp = os.path.join(out, f"locacao_{locacao['id']}.pdf")
+    doc = SimpleDocTemplate(fp, pagesize=A4, rightMargin=1.8*cm, leftMargin=1.8*cm, topMargin=1.5*cm, bottomMargin=2*cm)
     story = []
-
-    logo_img = _get_logo_image(config)
-    left_cell = []
-    if logo_img:
-        left_cell.append(logo_img)
-        left_cell.append(Spacer(1, 0.2*cm))
-    left_cell.append(Paragraph(f"<b>{config.get('empresa_nome','DripArt')}</b>", ParagraphStyle('th', fontSize=20, textColor=PURPLE, fontName='Helvetica-Bold')))
-
-    header_data = [[
-        left_cell,
-        Paragraph(f"{config.get('empresa_cnpj','')}<br/>{config.get('empresa_telefone','')}<br/>{config.get('empresa_email','')}",
-                  ParagraphStyle('tr', fontSize=8, textColor=GRAY, alignment=TA_RIGHT))
-    ]]
-    ht = Table(header_data, colWidths=[9*cm, 8*cm])
-    ht.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('BOTTOMPADDING',(0,0),(-1,-1),12)]))
-    story.append(ht)
-    story.append(HRFlowable(width="100%", thickness=1, color=PURPLE))
-    story.append(Spacer(1, 0.4*cm))
-
-    story.append(Paragraph("CONTRATO DE LOCAÇÃO",
-        ParagraphStyle('dt', fontSize=14, textColor=PURPLE, fontName='Helvetica-Bold', spaceAfter=4)))
-    story.append(Paragraph(
-        f"Locação #{locacao['id']}  ·  Emitido em {_fmt_date(locacao.get('criado_em',''))}",
-        ParagraphStyle('sub', fontSize=9, textColor=GRAY, fontName='Helvetica')))
-    story.append(Spacer(1, 0.4*cm))
-
-    # Info box
-    info_data = [
-        [Paragraph("CLIENTE", ParagraphStyle('lbl', fontSize=8, textColor=GRAY)),
-         Paragraph("RETIRADA", ParagraphStyle('lbl', fontSize=8, textColor=GRAY)),
-         Paragraph("DEVOLUÇÃO", ParagraphStyle('lbl', fontSize=8, textColor=GRAY))],
-        [Paragraph(locacao.get('cliente_nome','—'), ParagraphStyle('val', fontSize=11, fontName='Helvetica-Bold', textColor=TEXT)),
-         Paragraph(_fmt_date(locacao.get('data_retirada','')), ParagraphStyle('val', fontSize=11, fontName='Helvetica-Bold', textColor=TEXT)),
-         Paragraph(_fmt_date(locacao.get('data_devolucao','')), ParagraphStyle('val', fontSize=11, fontName='Helvetica-Bold', textColor=TEXT))],
+    
+    doc_ref = f"LOC-{locacao['id']:04d}"
+    story.append(criar_cabecalho(config, "CONTRATO DE LOCAÇÃO", doc_ref))
+    story.append(Spacer(1, 0.8*cm))
+    
+    cli_data = [
+        [Paragraph("<b>Dados do Evento</b>", P_H2)],
+        [Paragraph(f"<b>Cliente:</b> {locacao.get('cliente_nome', 'Avulso')} &nbsp;&nbsp;&nbsp; <b>Retirada:</b> {locacao.get('data_retirada', '')}", P_NOR)],
+        [Paragraph(f"<b>Devolução:</b> {locacao.get('data_devolucao', '')} &nbsp;&nbsp;&nbsp; <b>Forma de Pagto:</b> {locacao.get('forma_pagamento', '')}", P_NOR)]
     ]
-    it = Table(info_data, colWidths=[7*cm, 5*cm, 5*cm])
-    it.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,-1),PURPLE_LIGHT),
-        ('LEFTPADDING',(0,0),(-1,-1),10),('RIGHTPADDING',(0,0),(-1,-1),10),
-        ('TOPPADDING',(0,0),(0,0),8),('BOTTOMPADDING',(0,-1),(-1,-1),8),
+    t_cli = Table(cli_data, colWidths=[17.4*cm])
+    t_cli.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), GRAY_LT),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.lightgrey),
+        ('PADDING', (0,0), (-1,-1), 8),
     ]))
-    story.append(it)
+    story.append(t_cli)
     story.append(Spacer(1, 0.5*cm))
-
-    rows = [['#','Item','Qtd','Valor Unit.','Subtotal']]
-    for i, item in enumerate(itens, 1):
-        rows.append([str(i), item.get('nome','—'), _fmt_num(item.get('quantidade',1)),
-                     _fmt_brl(item.get('preco_unitario',0)), _fmt_brl(item.get('subtotal',0))])
-    t = Table(rows, colWidths=[0.8*cm, 9.2*cm, 2*cm, 2.5*cm, 2.5*cm])
-    t.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,0),PURPLE),('TEXTCOLOR',(0,0),(-1,0),colors.white),
-        ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),9),
-        ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,GRAY_LIGHT]),
-        ('ALIGN',(2,0),(-1,-1),'RIGHT'),('ALIGN',(0,0),(0,-1),'CENTER'),
-        ('GRID',(0,0),(-1,-1),0.3,GRAY),
-        ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5),
-        ('LEFTPADDING',(0,0),(-1,-1),6),('RIGHTPADDING',(0,0),(-1,-1),6),
+    
+    th = [Paragraph('<b>Produto</b>', P_TH_L), Paragraph('<b>Qtd</b>', P_TH_C), Paragraph('<b>V. Unit</b>', P_TH_R), Paragraph('<b>Subtotal</b>', P_TH_R)]
+    td = [th]
+    for i in itens:
+        nome = i.get('nome', i.get('descricao', 'Item'))
+        qtd = float(i.get('quantidade', 1))
+        v = float(i.get('preco_unitario', 0))
+        td.append([
+            Paragraph(nome, P_NOR),
+            Paragraph(str(qtd), P_CENTER),
+            Paragraph(formatar_moeda(v), P_R),
+            Paragraph(formatar_moeda(qtd*v), P_R_B)
+        ])
+    t_itens = Table(td, colWidths=[9.4*cm, 2*cm, 3*cm, 3*cm])
+    t_itens.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), DARK),
+        ('TEXTCOLOR', (0,0), (-1,0), WHITE),
+        ('ALIGN', (1,0), (1,-1), 'CENTER'),
+        ('ALIGN', (2,0), (-1,-1), 'RIGHT'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
+        ('ROWBACKGROUNDS', (0,1), (-1,-1), [WHITE, GRAY_LT]),
+        ('PADDING', (0,0), (-1,-1), 6),
     ]))
-    story.append(t)
-    story.append(Spacer(1, 0.4*cm))
-
-    subtotal = float(locacao.get('total',0)) + float(locacao.get('desconto',0))
-    desconto = float(locacao.get('desconto',0))
-    total = float(locacao.get('total',0))
-    td = [['Subtotal', _fmt_brl(subtotal)]]
-    if desconto > 0:
-        td.append(['Desconto', f"- {_fmt_brl(desconto)}"])
-    td.append(['TOTAL', _fmt_brl(total)])
-    tt = Table(td, colWidths=[13.5*cm, 3.5*cm])
-    last = len(td)-1
-    tt.setStyle(TableStyle([
-        ('ALIGN',(1,0),(1,-1),'RIGHT'),('FONTSIZE',(0,0),(-1,-1),9),
-        ('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),3),
-        ('RIGHTPADDING',(1,0),(1,-1),6),
-        ('FONTNAME',(0,last),(-1,last),'Helvetica-Bold'),
-        ('FONTSIZE',(0,last),(-1,last),11),
-        ('TEXTCOLOR',(0,last),(-1,last),PURPLE),
-        ('LINEABOVE',(0,last),(-1,last),1,PURPLE),
+    story.append(t_itens)
+    story.append(Spacer(1, 0.5*cm))
+    
+    total = float(locacao.get('total', 0))
+    t_tot = Table([[Paragraph("<b>TOTAL</b>", P_H2), Paragraph(f"<b>{formatar_moeda(total)}</b>", P_BRAND)]], colWidths=[12.4*cm, 5*cm])
+    t_tot.setStyle(TableStyle([
+        ('ALIGN', (1,0), (1,0), 'RIGHT'),
+        ('LINEABOVE', (0,0), (-1,-1), 1, BRAND),
+        ('PADDING', (0,0), (-1,-1), 8),
     ]))
-    story.append(tt)
-    story.append(Spacer(1,0.8*cm))
+    story.append(t_tot)
 
-    # Assinaturas
-    sig_data = [[
-        Paragraph("_________________________________<br/>Empresa — DripArt", ParagraphStyle('sig', fontSize=9, textColor=GRAY, alignment=TA_CENTER)),
-        Paragraph(f"_________________________________<br/>Cliente — {locacao.get('cliente_nome','')}", ParagraphStyle('sig', fontSize=9, textColor=GRAY, alignment=TA_CENTER)),
-    ]]
-    st = Table(sig_data, colWidths=[8.5*cm, 8.5*cm])
-    st.setStyle(TableStyle([('TOPPADDING',(0,0),(-1,-1),20)]))
-    story.append(st)
-    story.append(Spacer(1,0.5*cm))
-    story.append(HRFlowable(width="100%",thickness=0.5,color=GRAY_LIGHT))
-    story.append(Spacer(1,0.2*cm))
-    story.append(Paragraph(
-        f"Documento gerado em {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')} · {config.get('empresa_nome','DripArt')}",
-        ParagraphStyle('footer', fontSize=7, textColor=GRAY, alignment=TA_CENTER)))
+    adicionar_rodape(story, doc_ref, config, total)
+
     doc.build(story)
-    return filepath
-
-
-def gerar_relatorio_pdf(data_ini, data_fim, vendas, formas, despesas, total_entrada, total_saida, config):
-    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs')
-    os.makedirs(output_dir, exist_ok=True)
-    filename = f"relatorio_{data_ini}_{data_fim}.pdf"
-    filepath = os.path.join(output_dir, filename)
-
-    doc = SimpleDocTemplate(filepath, pagesize=A4,
-        rightMargin=2*cm, leftMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
-    story = []
-
-    logo_img = _get_logo_image(config)
-    left_cell = []
-    if logo_img:
-        left_cell.append(logo_img)
-        left_cell.append(Spacer(1, 0.2*cm))
-    left_cell.append(Paragraph(f"<b>{config.get('empresa_nome','DripArt')}</b>", ParagraphStyle('th', fontSize=20, textColor=PURPLE, fontName='Helvetica-Bold')))
-
-    header_data = [[
-        left_cell,
-        Paragraph(f"{config.get('empresa_telefone','')}<br/>{config.get('empresa_email','')}",
-                  ParagraphStyle('tr', fontSize=8, textColor=GRAY, alignment=TA_RIGHT))
-    ]]
-    ht = Table(header_data, colWidths=[9*cm, 8*cm])
-    ht.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('BOTTOMPADDING',(0,0),(-1,-1),12)]))
-    story.append(ht)
-    story.append(HRFlowable(width="100%", thickness=1, color=PURPLE))
-    story.append(Spacer(1, 0.4*cm))
-
-    story.append(Paragraph("RELATÓRIO FINANCEIRO",
-        ParagraphStyle('dt', fontSize=14, textColor=PURPLE, fontName='Helvetica-Bold', spaceAfter=4)))
-    story.append(Paragraph(f"Período: {_fmt_date(data_ini)} a {_fmt_date(data_fim)}",
-        ParagraphStyle('sub', fontSize=10, textColor=GRAY, fontName='Helvetica')))
-    story.append(Spacer(1, 0.5*cm))
-
-    # Resumo
-    saldo = total_entrada - total_saida
-    saldo_color = colors.HexColor('#1D9E75') if saldo >= 0 else colors.HexColor('#D85A30')
-    resumo = [
-        [Paragraph('Total entradas (pagas)', ParagraphStyle('rl', fontSize=10, textColor=GRAY)),
-         Paragraph(_fmt_brl(total_entrada), ParagraphStyle('rv', fontSize=12, fontName='Helvetica-Bold', textColor=colors.HexColor('#1D9E75'), alignment=TA_RIGHT))],
-        [Paragraph('Total saídas (despesas)', ParagraphStyle('rl', fontSize=10, textColor=GRAY)),
-         Paragraph(_fmt_brl(total_saida), ParagraphStyle('rv', fontSize=12, fontName='Helvetica-Bold', textColor=colors.HexColor('#D85A30'), alignment=TA_RIGHT))],
-        [Paragraph('Saldo do período', ParagraphStyle('rl', fontSize=11, fontName='Helvetica-Bold', textColor=TEXT)),
-         Paragraph(_fmt_brl(saldo), ParagraphStyle('rv', fontSize=13, fontName='Helvetica-Bold', textColor=saldo_color, alignment=TA_RIGHT))],
-    ]
-    rt = Table(resumo, colWidths=[13*cm, 4*cm])
-    rt.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,-1),PURPLE_LIGHT),
-        ('LEFTPADDING',(0,0),(-1,-1),12),('RIGHTPADDING',(0,0),(-1,-1),12),
-        ('TOPPADDING',(0,0),(-1,-1),6),('BOTTOMPADDING',(0,0),(-1,-1),6),
-        ('LINEBELOW',(0,1),(-1,1),0.5,GRAY),
-    ]))
-    story.append(rt)
-    story.append(Spacer(1, 0.5*cm))
-
-    tipo_labels = {'impressao':'Impressão','produto':'Produto','servico':'Serviço','locacao':'Locação','outro':'Outros'}
-    pag_labels = {'dinheiro':'Dinheiro','pix':'PIX','cartao_debito':'Cartão Débito','cartao_credito':'Cartão Crédito','fiado':'Fiado'}
-
-    def make_table(title, rows_data, col1, col2, col3, col_labels):
-        story.append(Paragraph(title, ParagraphStyle('sec', fontSize=11, fontName='Helvetica-Bold', textColor=PURPLE, spaceBefore=8, spaceAfter=4)))
-        if not rows_data:
-            story.append(Paragraph("Sem dados no período.", ParagraphStyle('nd', fontSize=9, textColor=GRAY)))
-            return
-        header = [[col1, col2, col3]]
-        data_rows = [[col_labels.get(r.get(list(r.keys())[0],''),r.get(list(r.keys())[0],'')),
-                      str(r.get('qtd',0)), _fmt_brl(r.get('total',0))] for r in rows_data]
-        t = Table(header + data_rows, colWidths=[9*cm, 3*cm, 5*cm])
-        t.setStyle(TableStyle([
-            ('BACKGROUND',(0,0),(-1,0),PURPLE),('TEXTCOLOR',(0,0),(-1,0),colors.white),
-            ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),9),
-            ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,GRAY_LIGHT]),
-            ('ALIGN',(1,0),(-1,-1),'RIGHT'),
-            ('GRID',(0,0),(-1,-1),0.3,GRAY),
-            ('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4),
-            ('LEFTPADDING',(0,0),(-1,-1),6),('RIGHTPADDING',(0,0),(-1,-1),6),
-        ]))
-        story.append(t)
-
-    make_table('Receita por tipo', vendas, 'Tipo', 'Qtd', 'Total', tipo_labels)
-    make_table('Formas de pagamento', formas, 'Pagamento', 'Qtd', 'Total', pag_labels)
-
-    # Despesas
-    story.append(Paragraph('Despesas por categoria', ParagraphStyle('sec', fontSize=11, fontName='Helvetica-Bold', textColor=PURPLE, spaceBefore=8, spaceAfter=4)))
-    cat_labels = {'material':'Material','fornecedor':'Fornecedor','aluguel':'Aluguel','servico_terceiro':'Serv. Terceiro','equipamento':'Equipamento','transporte':'Transporte','alimentacao':'Alimentação','geral':'Geral'}
-    if despesas:
-        header = [['Categoria','Qtd','Total']]
-        data_rows = [[cat_labels.get(r.get('categoria',''),r.get('categoria','')), str(r.get('qtd',0)), _fmt_brl(r.get('total',0))] for r in despesas]
-        t = Table(header + data_rows, colWidths=[9*cm, 3*cm, 5*cm])
-        t.setStyle(TableStyle([
-            ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#993C1D')),('TEXTCOLOR',(0,0),(-1,0),colors.white),
-            ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),9),
-            ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,GRAY_LIGHT]),
-            ('ALIGN',(1,0),(-1,-1),'RIGHT'),
-            ('GRID',(0,0),(-1,-1),0.3,GRAY),
-            ('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4),
-            ('LEFTPADDING',(0,0),(-1,-1),6),('RIGHTPADDING',(0,0),(-1,-1),6),
-        ]))
-        story.append(t)
-    else:
-        story.append(Paragraph("Sem despesas no período.", ParagraphStyle('nd', fontSize=9, textColor=GRAY)))
-
-    story.append(Spacer(1,0.8*cm))
-    story.append(HRFlowable(width="100%",thickness=0.5,color=GRAY_LIGHT))
-    story.append(Spacer(1,0.2*cm))
-    story.append(Paragraph(
-        f"Relatório gerado em {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')} · {config.get('empresa_nome','DripArt')}",
-        ParagraphStyle('footer', fontSize=7, textColor=GRAY, alignment=TA_CENTER)))
-    doc.build(story)
-    return filepath
-
+    return fp
 
 def gerar_pdf_encomenda(enc, config):
-    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs')
-    os.makedirs(output_dir, exist_ok=True)
-    filepath = os.path.join(output_dir, f"encomenda_{enc['id']}.pdf")
-
-    doc = SimpleDocTemplate(filepath, pagesize=A4,
-        rightMargin=2*cm, leftMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs')
+    os.makedirs(out, exist_ok=True)
+    fp = os.path.join(out, f"encomenda_{enc['id']}.pdf")
+    doc = SimpleDocTemplate(fp, pagesize=A4, rightMargin=1.8*cm, leftMargin=1.8*cm, topMargin=1.5*cm, bottomMargin=2*cm)
     story = []
-
-    # Header
-    logo_img = _get_logo_image(config)
-    left_cell = []
-    if logo_img:
-        left_cell.append(logo_img)
-        left_cell.append(Spacer(1, 0.2*cm))
-    left_cell.append(Paragraph(f"<b>{config.get('empresa_nome','DripArt')}</b>", ParagraphStyle('th', fontSize=20, textColor=PURPLE, fontName='Helvetica-Bold')))
-
-    hd = [[
-        left_cell,
-        Paragraph(
-            f"{config.get('empresa_cnpj','')}<br/>"
-            f"{config.get('empresa_telefone','')}"
-            f"{(' · WA: ' + config['empresa_whatsapp']) if config.get('empresa_whatsapp') else ''}<br/>"
-            f"{config.get('empresa_email','')}",
-            ParagraphStyle('tr', fontSize=8, textColor=GRAY, alignment=TA_RIGHT))
-    ]]
-    ht = Table(hd, colWidths=[9*cm, 8*cm])
-    ht.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('BOTTOMPADDING',(0,0),(-1,-1),12)]))
-    story.append(ht)
-    story.append(HRFlowable(width="100%", thickness=1, color=PURPLE))
-    story.append(Spacer(1, 0.4*cm))
-
-    story.append(Paragraph("PEDIDO DE ENCOMENDA",
-        ParagraphStyle('dt', fontSize=14, textColor=PURPLE, fontName='Helvetica-Bold', spaceAfter=4)))
-    story.append(Paragraph(
-        f"Encomenda {enc['numero']}  ·  Data do pedido: {_fmt_date(enc.get('data_pedido',''))}",
-        ParagraphStyle('sub', fontSize=9, textColor=GRAY, fontName='Helvetica')))
-    story.append(Spacer(1, 0.4*cm))
-
-    # Info box
-    entrega_label = _fmt_date(enc.get('data_entrega','')) or 'A combinar'
-    info = [[
-        Paragraph("CLIENTE", ParagraphStyle('lbl', fontSize=8, textColor=GRAY)),
-        Paragraph("ENTREGA PREVISTA", ParagraphStyle('lbl', fontSize=8, textColor=GRAY)),
-        Paragraph("VALOR", ParagraphStyle('lbl', fontSize=8, textColor=GRAY))
-    ],[
-        Paragraph(enc.get('cliente_nome','—'), ParagraphStyle('val', fontSize=11, fontName='Helvetica-Bold', textColor=TEXT)),
-        Paragraph(entrega_label, ParagraphStyle('val', fontSize=11, fontName='Helvetica-Bold', textColor=TEXT)),
-        Paragraph(_fmt_brl(enc.get('total', 0)), ParagraphStyle('val', fontSize=12, fontName='Helvetica-Bold', textColor=PURPLE)),
-    ]]
-    it = Table(info, colWidths=[7*cm, 5*cm, 5*cm])
-    it.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,-1),PURPLE_LIGHT),
-        ('LEFTPADDING',(0,0),(-1,-1),10),('RIGHTPADDING',(0,0),(-1,-1),10),
-        ('TOPPADDING',(0,0),(0,0),8),('BOTTOMPADDING',(0,-1),(-1,-1),8),
-    ]))
-    story.append(it)
-    story.append(Spacer(1, 0.5*cm))
-
-    # Descricao
-    story.append(Paragraph("DESCRICAO DO PEDIDO",
-        ParagraphStyle('sec', fontSize=10, fontName='Helvetica-Bold', textColor=PURPLE, spaceAfter=6)))
-    desc_box = [[Paragraph(enc.get('descricao','—'),
-        ParagraphStyle('desc', fontSize=10, textColor=TEXT, leading=16))]]
-    dt = Table(desc_box, colWidths=[17*cm])
-    dt.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,-1),GRAY_LIGHT),
-        ('LEFTPADDING',(0,0),(-1,-1),12),('RIGHTPADDING',(0,0),(-1,-1),12),
-        ('TOPPADDING',(0,0),(-1,-1),10),('BOTTOMPADDING',(0,0),(-1,-1),10),
-        ('ROWBACKGROUNDS',(0,0),(-1,-1),[GRAY_LIGHT]),
-    ]))
-    story.append(dt)
-
-    if enc.get('obs'):
-        story.append(Spacer(1, 0.3*cm))
-        story.append(Paragraph(f"Obs: {enc['obs']}",
-            ParagraphStyle('obs', fontSize=9, textColor=GRAY, fontName='Helvetica', leftIndent=4)))
-
-    story.append(Spacer(1, 1*cm))
-
-    # Assinaturas
-    sig = [[
-        Paragraph("_________________________________<br/>Empresa — " + config.get('empresa_nome','DripArt'),
-            ParagraphStyle('s', fontSize=9, textColor=GRAY, alignment=TA_CENTER)),
-        Paragraph(f"_________________________________<br/>Cliente — {enc.get('cliente_nome','')}",
-            ParagraphStyle('s', fontSize=9, textColor=GRAY, alignment=TA_CENTER)),
-    ]]
-    st = Table(sig, colWidths=[8.5*cm, 8.5*cm])
-    st.setStyle(TableStyle([('TOPPADDING',(0,0),(-1,-1),20)]))
-    story.append(st)
-
+    
+    doc_ref = f"ENC-{enc['id']:04d}"
+    story.append(criar_cabecalho(config, "PEDIDO DE ENCOMENDA", doc_ref))
     story.append(Spacer(1, 0.8*cm))
-    story.append(HRFlowable(width="100%", thickness=0.5, color=GRAY_LIGHT))
-    story.append(Spacer(1, 0.2*cm))
-    story.append(Paragraph(
-        f"Documento gerado em {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')} · {config.get('empresa_nome','DripArt')}",
-        ParagraphStyle('footer', fontSize=7, textColor=GRAY, alignment=TA_CENTER)))
+    
+    cli_data = [
+        [Paragraph("<b>Detalhes da Encomenda</b>", P_H2)],
+        [Paragraph(f"<b>Cliente:</b> {enc.get('cliente_nome', 'Avulso')} &nbsp;&nbsp;&nbsp; <b>Data Entrega:</b> {enc.get('data_entrega', '')}", P_NOR)],
+        [Paragraph(f"<b>Descrição:</b> {enc.get('descricao', '')}", P_NOR)]
+    ]
+    t_cli = Table(cli_data, colWidths=[17.4*cm])
+    t_cli.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), GRAY_LT),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.lightgrey),
+        ('PADDING', (0,0), (-1,-1), 8),
+    ]))
+    story.append(t_cli)
+    story.append(Spacer(1, 0.5*cm))
+    
+    total = float(enc.get('total', 0))
+    t_tot = Table([[Paragraph("<b>VALOR TOTAL</b>", P_H2), Paragraph(f"<b>{formatar_moeda(total)}</b>", P_BRAND)]], colWidths=[12.4*cm, 5*cm])
+    t_tot.setStyle(TableStyle([
+        ('ALIGN', (1,0), (1,0), 'RIGHT'),
+        ('LINEABOVE', (0,0), (-1,-1), 1, BRAND),
+        ('PADDING', (0,0), (-1,-1), 8),
+    ]))
+    story.append(t_tot)
+
+    adicionar_rodape(story, doc_ref, config, total)
 
     doc.build(story)
-    return filepath
+    return fp
+
+def gerar_relatorio_pdf(data_ini, data_fim, vendas, formas, despesas, total_entrada, total_saida, config, vendas_lista=None, locacoes_lista=None, despesas_lista=None):
+    if vendas_lista is None: vendas_lista = []
+    if locacoes_lista is None: locacoes_lista = []
+    if despesas_lista is None: despesas_lista = []
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs')
+    os.makedirs(out, exist_ok=True)
+    fp = os.path.join(out, f"relatorio_{data_ini}_{data_fim}.pdf")
+    doc = SimpleDocTemplate(fp, pagesize=A4, rightMargin=1.8*cm, leftMargin=1.8*cm, topMargin=1.5*cm, bottomMargin=2*cm)
+    story = []
+    
+    story.append(criar_cabecalho(config, "RELATÓRIO FINANCEIRO", f"Período: {data_ini} a {data_fim}"))
+    story.append(Spacer(1, 0.8*cm))
+    
+    t_res = Table([
+        [Paragraph("<b>Entradas</b>", P_CENTER), Paragraph("<b>Saídas</b>", P_CENTER), Paragraph("<b>Saldo</b>", P_CENTER)],
+        [Paragraph(f"<font color='green'>{formatar_moeda(total_entrada)}</font>", P_CENTER),
+         Paragraph(f"<font color='red'>{formatar_moeda(total_saida)}</font>", P_CENTER),
+         Paragraph(f"<font color='blue'>{formatar_moeda(total_entrada - total_saida)}</font>", P_CENTER)]
+    ], colWidths=[5.8*cm, 5.8*cm, 5.8*cm])
+    t_res.setStyle(TableStyle([
+        ('BOX', (0,0), (-1,-1), 0.5, colors.lightgrey),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
+        ('BACKGROUND', (0,0), (-1,0), GRAY_LT),
+        ('PADDING', (0,0), (-1,-1), 6)
+    ]))
+    story.append(t_res)
+    story.append(Spacer(1, 0.8*cm))
+    
+    # Detalhamento Vendas
+    story.append(Paragraph("<b>Extrato de Entradas (Vendas e Locações)</b>", P_H2))
+    story.append(Spacer(1, 0.2*cm))
+    d_vendas = [["Data", "Cliente/Info", "Tipo", "Forma Pgto", "Valor"]]
+    for v in vendas_lista:
+        d = v.get('criado_em', '')[:10]
+        cli = v.get('cliente_nome') or '-'
+        d_vendas.append([d, cli[:20], v.get('tipo',''), v.get('forma_pagamento',''), formatar_moeda(v.get('total', 0))])
+    for l in locacoes_lista:
+        d = l.get('criado_em', '')[:10]
+        cli = l.get('cliente_nome') or '-'
+        d_vendas.append([d, cli[:20], 'Locação', '-', formatar_moeda(l.get('total', 0))])
+    
+    if len(d_vendas) == 1:
+        d_vendas.append(["Nenhuma entrada no período", "", "", "", ""])
+        
+    t_vendas = Table(d_vendas, colWidths=[2.5*cm, 6.5*cm, 2.5*cm, 3.4*cm, 2.5*cm])
+    t_vendas.setStyle(TableStyle([
+        ('BOX', (0,0), (-1,-1), 0.5, colors.lightgrey),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
+        ('BACKGROUND', (0,0), (-1,0), GRAY_LT),
+        ('ALIGN', (4,0), (4,-1), 'RIGHT'),
+        ('FONTSIZE', (0,0), (-1,-1), 8),
+        ('PADDING', (0,0), (-1,-1), 4)
+    ]))
+    story.append(t_vendas)
+    story.append(Spacer(1, 0.8*cm))
+    
+    # Detalhamento Despesas
+    story.append(Paragraph("<b>Extrato de Saídas (Despesas)</b>", P_H2))
+    story.append(Spacer(1, 0.2*cm))
+    d_despesas = [["Data", "Descrição", "Categoria", "Valor"]]
+    for d in despesas_lista:
+        dt = d.get('data', '')[:10]
+        desc = d.get('descricao') or '-'
+        d_despesas.append([dt, desc[:40], d.get('categoria',''), formatar_moeda(d.get('valor', 0))])
+    if len(d_despesas) == 1:
+        d_despesas.append(["Nenhuma saída no período", "", "", ""])
+        
+    t_despesas = Table(d_despesas, colWidths=[2.5*cm, 8*cm, 4.4*cm, 2.5*cm])
+    t_despesas.setStyle(TableStyle([
+        ('BOX', (0,0), (-1,-1), 0.5, colors.lightgrey),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
+        ('BACKGROUND', (0,0), (-1,0), GRAY_LT),
+        ('ALIGN', (3,0), (3,-1), 'RIGHT'),
+        ('FONTSIZE', (0,0), (-1,-1), 8),
+        ('PADDING', (0,0), (-1,-1), 4)
+    ]))
+    story.append(t_despesas)
+    
+    doc.build(story)
+    return fp

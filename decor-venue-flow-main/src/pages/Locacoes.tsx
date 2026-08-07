@@ -1,5 +1,7 @@
+import { PaymentSplitter, type PagamentoPayload } from "@/components/PaymentSplitter";
 import { useMemo, useState, useEffect } from "react";
-import { Info } from "lucide-react";
+import { Info, Share2 } from "lucide-react";
+import ShareModal from "@/components/ShareModal";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, LocacaoRow, API_BASE_URL } from "@/lib/api";
 import { brl, fmtDate } from "@/lib/format";
@@ -62,6 +64,7 @@ export default function LocacoesPage() {
   const [q, setQ] = useState("");
   const [ini, setIni] = useState("");
   const [fim, setFim] = useState("");
+  const [shareLoc, setShareLoc] = useState<LocacaoRow | null>(null);
 
   // Modal (Nova locação / Editar locação)
   const [modalOpen, setModalOpen] = useState(false);
@@ -71,7 +74,8 @@ export default function LocacoesPage() {
   const [modalTipo, setModalTipo] = useState<"item" | "kit">("item");
   const [dataRetirada, setDataRetirada] = useState("");
   const [dataDevolucao, setDataDevolucao] = useState("");
-  const [formaPagamento, setFormaPagamento] = useState("dinheiro");
+  const [pagamentos, setPagamentos] = useState<PagamentoPayload[]>([{ forma: "dinheiro", valor: 0 }]);
+  const formaPagamento = pagamentos[0]?.forma || "dinheiro";
   const [obs, setObs] = useState("");
   const [desconto, setDesconto] = useState<number | string>("");
   const [valorEntrada, setValorEntrada] = useState<number | string>("");
@@ -140,7 +144,7 @@ export default function LocacoesPage() {
     setModalTipo("item");
     setDataRetirada("");
     setDataDevolucao("");
-    setFormaPagamento("dinheiro");
+    setPagamentos([{ forma: "dinheiro", valor: 0 }]);
     setObs("");
     setDesconto("");
     setValorEntrada("");
@@ -161,7 +165,7 @@ export default function LocacoesPage() {
     setModalTipo((l.tipo as any) === "kit" ? "kit" : "item");
     setDataRetirada(l.data_retirada || "");
     setDataDevolucao(l.data_devolucao || "");
-    setFormaPagamento((l as any).forma_pagamento || "dinheiro");
+    setPagamentos([{ forma: (l as any).forma_pagamento || "dinheiro", valor: l.total || 0 }]);
     setObs((l as any).obs || "");
     setDesconto(Number((l as any).desconto || 0));
     setValorEntrada(Number((l as any).valor_entrada || 0));
@@ -237,7 +241,7 @@ export default function LocacoesPage() {
       const descVal = parseInputNumber(desconto) || 0;
       const totalVal = Math.max(0, subtotal - descVal);
 
-      const payload = {
+            const payload = {
         cliente_nome: clienteNome.trim(),
         tipo: modalTipo,
         data_retirada: dataRetirada,
@@ -246,8 +250,9 @@ export default function LocacoesPage() {
         desconto: descVal,
         total: totalVal,
         valor_entrada: parseInputNumber(valorEntrada) || 0,
-        forma_pagamento: formaPagamento,
-        obs,
+        forma_pagamento: pagamentos[0]?.forma || "dinheiro",
+        obs: pagamentos.length > 1 ? `Pagamentos: ${JSON.stringify(pagamentos)}
+${obs}` : obs,
         itens: locItems.map((it) => ({
           nome: it.nome,
           item_id: it.item_id,
@@ -412,6 +417,9 @@ export default function LocacoesPage() {
                     ) : null}
                     <Button size="sm" variant="outline" onClick={() => window.open(`${API_BASE_URL}/locacoes/${l.id}/pdf?token=${sessionStorage.getItem("dycore_token") || ""}`, "_blank")}>
                       PDF
+                    </Button>
+                    <Button size="sm" variant="outline" className="gap-1" onClick={() => setShareLoc(l)}>
+                      <Share2 className="h-3.5 w-3.5" /> Compartilhar
                     </Button>
                     <Button
                       size="sm"
@@ -684,6 +692,16 @@ export default function LocacoesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {shareLoc && (
+        <ShareModal
+          open={!!shareLoc}
+          onClose={() => setShareLoc(null)}
+          arquivo={`locacao_${shareLoc.id}.pdf`}
+          docLabel={`#${shareLoc.id}`}
+          tipo="locacao"
+          total={shareLoc.total}
+        />
+      )}
     </div>
   );
 }

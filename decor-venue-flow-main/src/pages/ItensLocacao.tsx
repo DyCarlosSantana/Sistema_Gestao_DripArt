@@ -40,6 +40,7 @@ type ItemLocRow = {
   categoria?: string;
   preco_diaria?: number;
   quantidade_total?: number;
+  imagem_url?: string;
 };
 
 type KitRow = {
@@ -82,6 +83,7 @@ export default function ItensLocacaoPage() {
   const [ilCategoria, setIlCategoria] = useState("");
   const [ilPreco, setIlPreco] = useState<string | number>("");
   const [ilQtdTotal, setIlQtdTotal] = useState<string | number>("");
+  const [ilImagemUrl, setIlImagemUrl] = useState("");
 
   function resetItemForm() {
     setEditItemId(null);
@@ -89,6 +91,7 @@ export default function ItensLocacaoPage() {
     setIlCategoria("");
     setIlPreco("");
     setIlQtdTotal("");
+    setIlImagemUrl("");
   }
 
   function abrirNovoItem() {
@@ -102,6 +105,7 @@ export default function ItensLocacaoPage() {
     setIlCategoria(it.categoria || "");
     setIlPreco(it.preco_diaria || "");
     setIlQtdTotal(it.quantidade_total || "");
+    setIlImagemUrl(it.imagem_url || "");
     setItemModalOpen(true);
   }
 
@@ -115,6 +119,7 @@ export default function ItensLocacaoPage() {
         categoria: ilCategoria.trim(),
         preco_diaria: preco,
         quantidade_total: parseInputNumber(ilQtdTotal) || 1,
+        imagem_url: ilImagemUrl,
       };
       return api.salvarItemLocacao(payload, editItemId ?? undefined);
     },
@@ -273,8 +278,12 @@ export default function ItensLocacaoPage() {
                   className="card-lift group relative rounded-2xl border border-border bg-card overflow-hidden shadow-subtle"
                 >
                   {/* Icon area */}
-                  <div className="relative h-24 bg-muted/30 flex items-center justify-center">
-                    <Package className="h-10 w-10 text-muted-foreground/30" />
+                  <div className="relative h-24 bg-muted/30 flex items-center justify-center overflow-hidden">
+                    {it.imagem_url ? (
+                      <img src={it.imagem_url} alt={it.nome} className="w-full h-full object-cover" />
+                    ) : (
+                      <Package className="h-10 w-10 text-muted-foreground/30" />
+                    )}
 
                     {/* Hover overlay actions */}
                     <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors flex items-start justify-end p-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -486,6 +495,36 @@ export default function ItensLocacaoPage() {
                 value={ilQtdTotal}
                 onChange={(e) => setIlQtdTotal(e.target.value)}
               />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-medium text-muted-foreground">Imagem do Item (URL ou Enviar)</label>
+              <div className="flex gap-2">
+                <Input value={ilImagemUrl} onChange={(e) => setIlImagemUrl(e.target.value)} placeholder="https://..." />
+                <Button type="button" variant="outline" className="shrink-0" onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = 'image/*';
+                  input.onchange = async (e: any) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    try {
+                      const res = await fetch('/api/upload', {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('dycore_token')}` }
+                      });
+                      const data = await res.json();
+                      if (data.url) setIlImagemUrl(data.url);
+                      else toast.error(data.erro || 'Erro no upload');
+                    } catch(err) { toast.error('Erro no upload'); }
+                  };
+                  input.click();
+                }}>
+                  <Package className="h-4 w-4 mr-2" /> Upload
+                </Button>
+              </div>
             </div>
           </div>
 

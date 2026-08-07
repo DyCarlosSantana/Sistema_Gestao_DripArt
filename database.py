@@ -345,6 +345,7 @@ CREATE TABLE IF NOT EXISTS itens_locacao (
     categoria TEXT,
     preco_diaria REAL NOT NULL,
     quantidade_total INTEGER DEFAULT 1,
+    imagem_url TEXT,
     ativo INTEGER DEFAULT 1
 );
 

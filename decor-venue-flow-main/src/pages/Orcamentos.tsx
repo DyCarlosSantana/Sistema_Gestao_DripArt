@@ -1,7 +1,8 @@
+import { PaymentSplitter, type PagamentoPayload } from "@/components/PaymentSplitter";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCalcStore } from "@/store/calcStore";
-import { Info } from "lucide-react";
+import { Info, Share2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, API_BASE_URL, type OrcamentoRow } from "@/lib/api";
 import { brl, fmtDate } from "@/lib/format";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import ShareModal from "@/components/ShareModal";
 import {
   Dialog,
   DialogContent,
@@ -58,9 +60,11 @@ export default function OrcamentosPage() {
   // Modal (Novo / Editar orçamento)
   const [modalOpen, setModalOpen] = useState(false);
   const [payModal, setPayModal] = useState<{open: boolean; id: number | null}>({open: false, id: null});
-  const [payForma, setPayForma] = useState("dinheiro");
+  const [payPagamentos, setPayPagamentos] = useState<PagamentoPayload[]>([{ forma: "dinheiro", valor: 0 }]);
+  const payForma = payPagamentos[0]?.forma || "dinheiro";
   const [confirmModal, setConfirmModal] = useState<{open: boolean, type: 'excluir' | 'locacao' | null, id: number | null}>({open: false, type: null, id: null});
   const [editId, setEditId] = useState<number | null>(null);
+  const [shareDoc, setShareDoc] = useState<OrcamentoRow | null>(null);
 
   const [clienteNome, setClienteNome] = useState("");
   const [obs, setObs] = useState("");
@@ -351,6 +355,9 @@ export default function OrcamentosPage() {
                     <Button size="sm" variant="outline" onClick={() => window.open(`${API_BASE_URL}/orcamentos/${o.id}/pdf?token=${sessionStorage.getItem("dycore_token") || ""}`, "_blank")}>
                       PDF
                     </Button>
+                    <Button size="sm" variant="outline" className="gap-1" onClick={() => setShareDoc(o)}>
+                      <Share2 className="h-3.5 w-3.5" /> Compartilhar
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => abrirEditar(o)}>
                       Editar
                     </Button>
@@ -586,23 +593,17 @@ export default function OrcamentosPage() {
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div>
-              <label className="text-sm font-medium mb-1 block">Forma de Pagamento</label>
-              <Select value={payForma} onValueChange={setPayForma}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {(formasQ.data || []).map((f: any) => (
-                    <SelectItem key={f.id} value={f.nome}>
-                      {f.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <PaymentSplitter 
+                total={payModal.total || 0} 
+                formasPagamento={formasQ.data || []} 
+                onChange={setPayPagamentos} 
+              />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPayModal({ open: false, id: null })}>Cancelar</Button>
             <Button onClick={() => {
-              if (payModal.id) converterM.mutate({ id: payModal.id, forma_pagamento: payForma });
+              if (payModal.id) converterM.mutate({ id: payModal.id, forma_pagamento: payPagamentos.length > 1 ? "Múltiplos" : payForma });
               setPayModal({ open: false, id: null });
             }}>Confirmar Pagamento</Button>
           </DialogFooter>
@@ -638,6 +639,16 @@ export default function OrcamentosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {shareDoc && (
+        <ShareModal
+          open={!!shareDoc}
+          onClose={() => setShareDoc(null)}
+          arquivo={`orcamento_${shareDoc.numero}.pdf`}
+          docLabel={shareDoc.numero}
+          tipo="orcamento"
+          total={shareDoc.total}
+        />
+      )}
     </div>
   );
 }

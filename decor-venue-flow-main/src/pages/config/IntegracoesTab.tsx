@@ -16,8 +16,14 @@ export default function IntegracoesTab() {
     gateway_pagamento: "nenhum",
     gateway_api_key: "",
     whatsapp_api_token: "",
+    whatsapp_url: "",
+    whatsapp_instance: "",
     whatsapp_ativo: 0,
     google_calendar_sync: 0,
+    smtp_host: "",
+    smtp_port: "",
+    smtp_user: "",
+    smtp_pass: "",
   });
 
   const [activeModal, setActiveModal] = useState<string | null>(null);
@@ -64,7 +70,7 @@ export default function IntegracoesTab() {
   };
 
   return (
-    <div className="space-y-6 max-w-[1000px]">
+    <div className="w-full space-y-6">
       <div className="flex items-center gap-2.5 px-4 py-3 bg-[var(--blue-soft)] border border-[var(--blue-border)] rounded-md text-[13px] text-muted-foreground">
         <Info className="h-4 w-4 text-blue-500 shrink-0" />
         Integrações conectam o sistema a serviços externos. As credenciais são criptografadas e nunca exibidas após salvas.
@@ -87,6 +93,25 @@ export default function IntegracoesTab() {
               <Button size="sm" variant="destructive" onClick={handleDisconnectWhatsapp} className="h-7 text-[11.5px] px-3 font-semibold">Desconectar</Button>
             ) : (
               <Button size="sm" onClick={() => setActiveModal('whatsapp')} className="h-7 text-[11.5px] px-3 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white">Conectar</Button>
+            )}
+          </div>
+        </div>
+
+        {/* Email / SMTP */}
+        <div className={`bg-surface2 border rounded-lg p-4 flex items-center gap-3.5 transition-colors hover:border-border-hover ${form.smtp_host ? "border-green-500/30" : "border-border"}`}>
+          <div className="w-11 h-11 rounded-lg bg-surface3 flex items-center justify-center text-[22px] shrink-0">✉️</div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[13.5px] font-semibold text-foreground">Email (SMTP)</div>
+            <div className="text-[12px] text-muted-foreground mt-0.5 leading-snug">Envio de documentos e faturas via email personalizado.</div>
+            <div className={`text-[11px] mt-1.5 font-semibold ${form.smtp_host ? "text-green-500" : "text-muted-foreground"}`}>
+              ● {form.smtp_host ? "Configurado" : "Não Configurado"}
+            </div>
+          </div>
+          <div className="ml-auto shrink-0">
+            {form.smtp_host ? (
+              <Button size="sm" variant="outline" onClick={() => setActiveModal('smtp')} className="h-7 text-[11.5px] px-3 font-semibold">Editar</Button>
+            ) : (
+              <Button size="sm" onClick={() => setActiveModal('smtp')} className="h-7 text-[11.5px] px-3 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white">Configurar</Button>
             )}
           </div>
         </div>
@@ -133,19 +158,6 @@ export default function IntegracoesTab() {
             ) : (
               <Button size="sm" onClick={() => setActiveModal('gateway')} className="h-7 text-[11.5px] px-3 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white">Conectar</Button>
             )}
-          </div>
-        </div>
-
-        {/* Google Sheets */}
-        <div className="bg-surface2 border border-border rounded-lg p-4 flex items-center gap-3.5 transition-colors hover:border-border-hover">
-          <div className="w-11 h-11 rounded-lg bg-surface3 flex items-center justify-center text-[22px] shrink-0">📊</div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[13.5px] font-semibold text-foreground">Google Sheets</div>
-            <div className="text-[12px] text-muted-foreground mt-0.5 leading-snug">Exportação automática de relatórios para planilhas.</div>
-            <div className="text-[11px] mt-1.5 font-semibold text-muted-foreground">● Desconectado</div>
-          </div>
-          <div className="ml-auto shrink-0">
-            <Button size="sm" onClick={handleComingSoon} className="h-7 text-[11.5px] px-3 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white">Conectar</Button>
           </div>
         </div>
 
@@ -209,22 +221,32 @@ export default function IntegracoesTab() {
           <DialogHeader className="p-5 pb-4 border-b border-border">
             <DialogTitle className="text-lg font-bold flex items-center gap-3">
               <div className="h-8 w-8 rounded-md bg-green-500/10 text-green-500 flex items-center justify-center"><MessageSquare className="h-4 w-4"/></div>
-              Conectar WhatsApp
+              Conectar WhatsApp API
             </DialogTitle>
           </DialogHeader>
           <div className="p-5 space-y-5 bg-surface/50">
             <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-background">
               <div>
-                <h4 className="font-bold text-[13.5px] text-foreground">Habilitar WhatsApp</h4>
-                <p className="text-[12px] text-muted-foreground mt-0.5">Envie mensagens automáticas para os clientes.</p>
+                <h4 className="font-bold text-[13.5px] text-foreground">Habilitar WhatsApp (Evolution API)</h4>
+                <p className="text-[12px] text-muted-foreground mt-0.5">Envie documentos em background.</p>
               </div>
               <Switch checked={form.whatsapp_ativo === 1} onCheckedChange={(c) => handleChange("whatsapp_ativo", c ? 1 : 0)} />
             </div>
 
             {form.whatsapp_ativo === 1 && (
-              <div className="space-y-1.5">
-                <label className="text-[11.5px] font-bold tracking-[0.08em] text-muted-foreground uppercase">Token da API (Z-API / Evolution)</label>
-                <Input type="password" placeholder="Insira o token de integração" value={form.whatsapp_api_token} onChange={(e) => handleChange("whatsapp_api_token", e.target.value)} className="h-10 bg-background border-border" />
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11.5px] font-bold tracking-[0.08em] text-muted-foreground uppercase">URL da API (Ex: https://api.wa.co)</label>
+                  <Input placeholder="URL Base da Evolution API" value={form.whatsapp_url || ""} onChange={(e) => handleChange("whatsapp_url", e.target.value)} className="h-10 bg-background border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11.5px] font-bold tracking-[0.08em] text-muted-foreground uppercase">Nome da Instância</label>
+                  <Input placeholder="Ex: dycore_wa" value={form.whatsapp_instance || ""} onChange={(e) => handleChange("whatsapp_instance", e.target.value)} className="h-10 bg-background border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11.5px] font-bold tracking-[0.08em] text-muted-foreground uppercase">Global API Key</label>
+                  <Input type="password" placeholder="Insira o token de integração" value={form.whatsapp_api_token || ""} onChange={(e) => handleChange("whatsapp_api_token", e.target.value)} className="h-10 bg-background border-border" />
+                </div>
               </div>
             )}
           </div>
@@ -232,6 +254,48 @@ export default function IntegracoesTab() {
             <Button variant="ghost" size="sm" onClick={() => setActiveModal(null)} className="text-muted-foreground hover:text-foreground">Cancelar</Button>
             <Button size="sm" onClick={saveChanges} disabled={saveM.isPending} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-6">
               {saveM.isPending ? "Salvando..." : "Conectar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* SMTP Dialog */}
+      <Dialog open={activeModal === 'smtp'} onOpenChange={(o) => !o && setActiveModal(null)}>
+        <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden bg-background border-border rounded-lg shadow-2xl">
+          <DialogHeader className="p-5 pb-4 border-b border-border">
+            <DialogTitle className="text-lg font-bold flex items-center gap-3">
+              <div className="h-8 w-8 rounded-md bg-blue-500/10 text-blue-500 flex items-center justify-center"><MessageSquare className="h-4 w-4"/></div>
+              Configuração SMTP (Email)
+            </DialogTitle>
+          </DialogHeader>
+          <div className="p-5 space-y-4 bg-surface/50">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5 col-span-2">
+                <label className="text-[11.5px] font-bold tracking-[0.08em] text-muted-foreground uppercase">Host SMTP</label>
+                <Input placeholder="Ex: smtp.gmail.com" value={form.smtp_host || ""} onChange={(e) => handleChange("smtp_host", e.target.value)} className="h-10 bg-background border-border" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11.5px] font-bold tracking-[0.08em] text-muted-foreground uppercase">Porta</label>
+                <Input placeholder="Ex: 587 ou 465" value={form.smtp_port || ""} onChange={(e) => handleChange("smtp_port", e.target.value)} className="h-10 bg-background border-border" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11.5px] font-bold tracking-[0.08em] text-muted-foreground uppercase">Usuário / Email</label>
+                <Input placeholder="seu@email.com" value={form.smtp_user || ""} onChange={(e) => handleChange("smtp_user", e.target.value)} className="h-10 bg-background border-border" />
+              </div>
+              <div className="space-y-1.5 col-span-2">
+                <label className="text-[11.5px] font-bold tracking-[0.08em] text-muted-foreground uppercase">Senha (App Password)</label>
+                <Input type="password" placeholder="Sua senha ou senha de aplicativo" value={form.smtp_pass || ""} onChange={(e) => handleChange("smtp_pass", e.target.value)} className="h-10 bg-background border-border" />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">Dica: Se estiver usando Gmail, crie uma "Senha de App" nas configurações de segurança da sua conta Google.</p>
+          </div>
+          <DialogFooter className="p-4 border-t border-border bg-surface2 flex items-center justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setActiveModal(null)} className="text-muted-foreground hover:text-foreground">Cancelar</Button>
+            <Button size="sm" onClick={() => {
+              // Permitir desconectar/limpar limpando os campos
+              saveChanges();
+            }} disabled={saveM.isPending} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-6">
+              {saveM.isPending ? "Salvando..." : "Salvar Configuração"}
             </Button>
           </DialogFooter>
         </DialogContent>

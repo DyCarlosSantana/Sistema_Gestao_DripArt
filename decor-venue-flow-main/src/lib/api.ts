@@ -359,4 +359,17 @@ export const api = {
   atualizarConfigIntegracoes: (payload: any) => request<any>("/config/integracoes", { method: "PUT", body: payload }),
   configHorarios: () => request<any[]>("/config/horarios"),
   atualizarConfigHorarios: (payload: { horarios: any[] }) => request<any[]>("/config/horarios", { method: "PUT", body: payload }),
+  // Email
+  enviarEmail: (payload: { destinatario: string; assunto: string; mensagem: string; arquivo?: string }) =>
+    request<any>("/email/enviar", { method: "POST", body: payload }),
+
+  // WhatsApp Evolution API
+  enviarWhatsapp: (payload: { numero: string; mensagem: string; arquivo?: string }) =>
+    request<any>("/whatsapp/enviar", { method: "POST", body: payload }),
+
+  // URL pública do PDF gerado (inclui token para auth)
+  docUrl: (filename: string) => {
+    const token = sessionStorage.getItem('dycore_token') || '';
+    return `${API_BASE_URL.replace(/\/api$/, '')}/api/docs/${filename}?token=${token}`;
+  },
 };

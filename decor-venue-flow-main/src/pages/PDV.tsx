@@ -1,3 +1,4 @@
+import { PaymentSplitter, type PagamentoPayload } from "@/components/PaymentSplitter";
 import { useEffect, useMemo, useState } from "react";
 import { useCalcStore } from "@/store/calcStore";
 import { Info } from "lucide-react";
@@ -60,7 +61,8 @@ export default function PDVPage() {
 
   const [clienteNome, setClienteNome] = useState("");
   const [tipo, setTipo] = useState<"impressao" | "produto" | "servico" | "outro">("impressao");
-  const [formaPagamento, setFormaPagamento] = useState<string>("dinheiro");
+  const [pagamentos, setPagamentos] = useState<PagamentoPayload[]>([{ forma: "dinheiro", valor: 0 }]);
+  const formaPagamento = pagamentos[0]?.forma || "dinheiro";
   const [status, setStatus] = useState<string>("pago");
   const [vencimento, setVencimento] = useState<string>("");
   const [obs, setObs] = useState<string>("");
@@ -137,7 +139,7 @@ export default function PDVPage() {
     setEditId(null);
     setClienteNome("");
     setTipo("impressao");
-    setFormaPagamento("dinheiro");
+    setPagamentos([{ forma: "dinheiro", valor: 0 }]);
     setStatus("pago");
     setVencimento("");
     setObs("");
@@ -154,7 +156,7 @@ export default function PDVPage() {
     setEditId(v.id);
     setClienteNome(v.cliente_nome || "");
     setTipo((v.tipo as any) || "impressao");
-    setFormaPagamento(v.forma_pagamento || "dinheiro");
+    setPagamentos([{ forma: v.forma_pagamento || "dinheiro", valor: v.total || 0 }]);
     setStatus(v.status || "pago");
     setObs((v as any).obs || "");
     setDesconto(Number((v as any).desconto || 0));
@@ -226,9 +228,9 @@ export default function PDVPage() {
         subtotal,
         desconto: descVal,
         total: totalVal,
-        forma_pagamento: formaPagamento,
-        status,
-        obs,
+        forma_pagamento: pagamentos[0]?.forma || "dinheiro",
+          status,
+          obs: pagamentos.length > 1 ? `Pagamentos: ${JSON.stringify(pagamentos)}\n${obs}` : obs,
         data_vencimento: formaPagamento === "fiado" ? (vencimento || null) : null,
         itens: items,
       };
@@ -399,18 +401,12 @@ export default function PDVPage() {
               </Select>
             </div>
 
-            <div className="sm:col-span-1">
-              <label className="text-xs font-medium text-muted-foreground">Forma de pagamento</label>
-              <Select value={formaPagamento} onValueChange={(v: any) => setFormaPagamento(v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(formasQ.data || []).map((f: any) => (
-                    <SelectItem key={f.id} value={f.nome}>{f.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="sm:col-span-2">
+              <PaymentSplitter 
+                total={calcTotals.total} 
+                formasPagamento={formasQ.data || []} 
+                onChange={setPagamentos} 
+              />
             </div>
 
             <div className="sm:col-span-1">

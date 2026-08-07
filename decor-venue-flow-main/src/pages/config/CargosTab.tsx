@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { toast as showToast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
@@ -27,10 +27,14 @@ const TODAS_PERMISSOES = [
   { id: "config_view", label: "Acessar Configurações", group: "Sistema" },
 ];
 
-export default function CargosTab({ cargos }: { cargos: any[] }) {
+export default function CargosTab({ cargos: cargosInicial }: { cargos: any[] }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<any>({ id: null, nome: "", descricao: "", permissoes: [] as string[] });
+
+  // Fetch cargos inside component so it reacts to invalidation automatically
+  const { data: cargosData } = useQuery({ queryKey: ["cargos"], queryFn: api.cargos });
+  const cargos = cargosData ?? cargosInicial;
 
   const { currentData, currentPage, maxPage, next, prev } = usePagination(cargos, 6);
 

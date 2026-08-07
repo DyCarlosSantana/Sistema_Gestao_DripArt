@@ -84,6 +84,11 @@
     --trillo-orange: 14 100% 50%;
     --trillo-lime: 71 84% 55%;
     --trillo-dark: 0 0% 4%;
+
+    /* Surface layers */
+    --surface2: 220 18% 93%;
+    --surface3: 220 16% 88%;
+    --border-hover: 220 10% 78%;
   }
 
   .dark {
@@ -114,6 +119,11 @@
     --sidebar-accent-foreground: 0 0% 90%;
     --sidebar-border: 225 10% 14%;
     --sidebar-ring: 328 85% 60%;
+
+    /* Surface layers */
+    --surface2: 225 12% 14%;
+    --surface3: 225 12% 18%;
+    --border-hover: 225 10% 28%;
   }
 }
 
@@ -187,8 +197,10 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ─── Sidebar ─────────────────────────────────────────────────────────────── */
-.sidebar-scroll::-webkit-scrollbar { width: 0; }
+/* ─── Scrollbars Hidden (Clean Aesthetic) ───────────────────────────────── */
+* { scrollbar-width: none; -ms-overflow-style: none; }
+*::-webkit-scrollbar { display: none; }
+
 .sidebar-scroll { scrollbar-width: none; -ms-overflow-style: none; }
 
 .sidebar-icon-btn::after {
@@ -254,13 +266,23 @@
 .form-label { font-size:11.5px; font-weight:600; color:hsl(var(--muted-foreground)); text-transform:uppercase; letter-spacing:.07em; display:flex; align-items:center; gap:6px; }
 .form-label svg { width:12px; height:12px; color:hsl(var(--muted-foreground)/0.6); }
 .form-input {
-  background:hsl(var(--secondary)); border:1px solid hsl(var(--border)); border-radius:var(--radius);
+  background:hsl(var(--surface2)); border:1px solid hsl(var(--border)); border-radius:var(--radius);
   padding:10px 14px; color:hsl(var(--foreground)); font-family:var(--font-body); font-size:13.5px;
   transition:border-color .2s, box-shadow .2s; width:100%;
 }
 .form-input:focus { outline:none; border-color:hsl(var(--primary)); box-shadow:0 0 0 3px hsla(var(--primary),0.12); }
-.form-input:disabled { opacity:.45; cursor:not-allowed; }
+.form-input:disabled { opacity:.45; cursor:not-allowed; background:hsl(var(--surface2)); }
 .form-input.with-prefix { padding-left:40px; }
+/* Fix browser autocomplete overriding dark mode background */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+select:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px hsl(var(--surface2)) inset !important;
+  -webkit-text-fill-color: hsl(var(--foreground)) !important;
+  caret-color: hsl(var(--foreground));
+  transition: background-color 9999s ease-in-out 0s;
+}
 .input-wrap { position:relative; }
 .input-prefix { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:hsl(var(--muted-foreground)); font-size:13px; pointer-events:none; }
 .input-prefix svg { width:15px; height:15px; display:block; }

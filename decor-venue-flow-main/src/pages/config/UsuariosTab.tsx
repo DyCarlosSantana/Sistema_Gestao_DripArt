@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { toast as showToast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,11 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
-export default function UsuariosTab({ usuarios, cargos }: { usuarios: any[]; cargos: any[] }) {
+export default function UsuariosTab({ usuarios, cargos: cargosInicial }: { usuarios: any[]; cargos: any[] }) {
   const qc = useQueryClient();
+  // Query interna para reagir imediatamente à criação/exclusão de cargos
+  const { data: cargosData } = useQuery({ queryKey: ["cargos"], queryFn: api.cargos });
+  const cargos = cargosData ?? cargosInicial;
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<any>({ nome: "", email: "", role: "operador", senha: "", cargo_id: "" });

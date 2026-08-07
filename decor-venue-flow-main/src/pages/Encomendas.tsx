@@ -62,7 +62,7 @@ export default function EncomendasPage() {
   const [valorEntrada, setValorEntrada] = useState<string | number>("");
   const [obs, setObs] = useState("");
   const navigate = useNavigate();
-  const [payModal, setPayModal] = useState<{open: boolean; id: number | null}>({open: false, id: null});
+  const [payModal, setPayModal] = useState<{open: boolean; id: number | null; totalRestante: number}>({open: false, id: null, totalRestante: 0});
   const [payForma, setPayForma] = useState("dinheiro");
 
   const encomendasQ = useQuery({
@@ -100,7 +100,14 @@ export default function EncomendasPage() {
       await qc.invalidateQueries({ queryKey: ["encomendas"] });
       await qc.invalidateQueries({ queryKey: ["dashboard"] });
     },
-    onError: (e: any) => toast.error(e?.message || "Erro ao salvar encomenda"),
+    onError: (error: any) => {
+      let msg = error instanceof Error ? error.message : "Erro ao salvar encomenda";
+      if (error?.details?.erro_interno || error?.details?.detalhes) {
+        msg = `Erro do Servidor: ${error.details.detalhes || error.details.erro_interno}`;
+        console.error("Backend Traceback:", error.details.trace);
+      }
+      toast.error(msg);
+    },
   });
 
   const alterarStatusM = useMutation({
@@ -122,7 +129,7 @@ export default function EncomendasPage() {
       await qc.invalidateQueries({ queryKey: ["encomendas"] });
       await qc.invalidateQueries({ queryKey: ["dashboard"] });
       await qc.invalidateQueries({ queryKey: ["vendas"] });
-      setPayModal({ open: false, id: null });
+      setPayModal({ open: false, id: null, totalRestante: 0 });
       if (variables.forma_pagamento === "fiado") {
         navigate("/fiado");
       }
@@ -334,7 +341,7 @@ export default function EncomendasPage() {
                       size="sm"
                       variant="outline"
                       className="text-xs h-7 bg-success/10 text-success border-success/20 hover:bg-success/20 hover:text-success"
-                      onClick={() => setPayModal({ open: true, id: enc.id })}
+                      onClick={() => setPayModal({ open: true, id: enc.id, totalRestante: enc.total - (enc.valor_entrada || 0) })}
                     >
                       Gerar Faturamento
                     </Button>
@@ -436,7 +443,7 @@ export default function EncomendasPage() {
         </DialogContent>
       </Dialog>
       {/* Modal Faturamento */}
-      <Dialog open={payModal.open} onOpenChange={(v) => { if (!v) setPayModal({ open: false, id: null }) }}>
+      <Dialog open={payModal.open} onOpenChange={(v) => { if (!v) setPayModal({ open: false, id: null, totalRestante: 0 }) }}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>Faturar Encomenda</DialogTitle>
@@ -458,7 +465,7 @@ export default function EncomendasPage() {
             </Select>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPayModal({ open: false, id: null })}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setPayModal({ open: false, id: null, totalRestante: 0 })}>Cancelar</Button>
             <Button disabled={faturarM.isPending} onClick={() => {
               if (payModal.id) faturarM.mutate({ id: payModal.id, forma_pagamento: payForma });
             }}>Confirmar Pagamento</Button>
