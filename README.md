@@ -2,7 +2,7 @@
 
 # Dycore — Modern Management SaaS
 
-**Plataforma inteligente de gestão para empresas de decoração, eventos e produtos personalizados.**
+**Minha plataforma de gestão para empresas de decoração, eventos e produtos personalizados.**
 
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Flask](https://img.shields.io/badge/Flask-3.x-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com)
@@ -14,15 +14,15 @@
 
 ---
 
-## ✨ Sobre o Projeto
+## Sobre o projeto
 
-O **Dycore** é um ecossistema SaaS completo, projetado para centralizar e otimizar todas as operações de negócios que lidam com vendas, locações de itens, produção sob encomenda e serviços de impressão. Com uma interface moderna, responsiva e minimalista, o sistema elimina a complexidade operacional e entrega agilidade no dia a dia.
+O **Dycore** é o sistema de gestão que estou desenvolvendo para centralizar as operações de negócios que lidam com vendas, locações de itens, produção sob encomenda e serviços de impressão. Comecei pensando no setor de decoração e eventos, mas fui evoluindo o projeto para uma base multi-tenant, capaz de atender outros segmentos sem precisar reescrever a estrutura.
 
-> Originalmente concebido para o setor de decoração e eventos, o Dycore evoluiu para uma plataforma robusta e multi-tenant, capaz de atender diversos segmentos de mercado.
+A prioridade é manter uma interface moderna e direta, tirando complexidade operacional do dia a dia de quem usa o sistema.
 
 ---
 
-## 🖥️ Interface
+## Interface
 
 <div align="center">
 
@@ -34,55 +34,56 @@ O **Dycore** é um ecossistema SaaS completo, projetado para centralizar e otimi
 
 ---
 
-## 💎 Módulos do Sistema
+## Módulos do sistema
 
-| Módulo                           | Descrição                                                                                                                  |
-| :-------------------------------- | :--------------------------------------------------------------------------------------------------------------------------- |
-| **📊 Dashboard**            | Métricas em tempo real, gráficos de faturamento e atalhos rápidos para as operações mais utilizadas.                    |
-| **🛒 PDV (Ponto de Venda)** | Check-out ágil com suporte a múltiplas formas de pagamento, pagamentos parciais e geração automática de recibos em PDF. |
-| **📦 Locações**           | Controle completo de contratos de locação, disponibilidade de itens por data e kits personalizados.                        |
-| **📅 Agenda & Encomendas**  | Calendário visual integrado ao fluxo de produção, com rastreamento de status (Pedido → Produção → Entregue).          |
-| **💰 Financeiro**           | Fluxo de caixa detalhado, gestão de despesas por categoria e controle rigoroso de vendas a prazo (Fiado).                   |
-| **📋 Orçamentos**          | Geração de propostas profissionais com validade configurável e emissão de PDF com QR Code PIX.                           |
-| **👥 Clientes & Produtos**  | Cadastro completo com visualização em cards, busca inteligente e controle de estoque.                                      |
-| **⚙️ Configurações**    | Gestão de usuários com sistema de Cargos e Permissões, personalização de logo e ativação de módulos.                 |
+| Módulo | Descrição |
+| :-- | :-- |
+| **📊 Dashboard** | Métricas em tempo real, gráficos de faturamento e atalhos para as operações mais usadas. |
+| **🛒 PDV (Ponto de Venda)** | Check-out com suporte a múltiplas formas de pagamento, pagamentos parciais e geração automática de recibos em PDF. |
+| **📦 Locações** | Controle de contratos de locação, disponibilidade de itens por data e kits personalizados. |
+| **📅 Agenda & Encomendas** | Calendário integrado ao fluxo de produção, com status (Pedido → Produção → Entregue). |
+| **💰 Financeiro** | Fluxo de caixa, gestão de despesas por categoria e controle de vendas a prazo (Fiado). |
+| **📋 Orçamentos** | Geração de propostas com validade configurável e PDF com QR Code PIX. |
+| **👥 Clientes & Produtos** | Cadastro com visualização em cards, busca e controle de estoque. |
+| **⚙️ Configurações** | Usuários com Cargos e Permissões, personalização de logo e ativação de módulos. |
 
 ---
 
-## 🛠️ Stack Tecnológica
+## Stack que estou usando
 
 <div align="center">
 
-| Camada                   | Tecnologias                                                                     |
-| :----------------------- | :------------------------------------------------------------------------------ |
-| **Frontend**       | React 18 · TypeScript · Vite · Tailwind CSS · Framer Motion · Lucide Icons |
-| **Backend**        | Python · Flask · Werkzeug · Flask-JWT-Extended                               |
-| **Banco de Dados** | PostgreSQL 16 (Neon.tech — Serverless Cloud)                                   |
-| **Relatórios**    | ReportLab (Geração dinâmica de PDFs) · Pillow (Processamento de imagens)    |
-| **Segurança**     | JWT · Hashing Bcrypt · Controle de Acesso por Roles (RBAC)                    |
+| Camada | Tecnologias |
+| :-- | :-- |
+| **Frontend do sistema** | React 18 · TypeScript · Vite · Tailwind CSS · Framer Motion · Lucide Icons |
+| **Landing page** | React · TypeScript · Vite (projeto separado, só para a página institucional) |
+| **Backend** | Python · Flask · Werkzeug · Flask-JWT-Extended |
+| **Banco de dados** | PostgreSQL 16 (Neon.tech — serverless) |
+| **Relatórios** | ReportLab (PDFs dinâmicos) · Pillow (imagens) |
+| **Segurança** | JWT · Hash Bcrypt · Controle de acesso por Roles (RBAC) |
 
 </div>
 
 ---
 
-## 🔒 Níveis de Acesso
+## 🔒 Níveis de acesso
 
-O sistema implementa controle de acesso baseado em papéis (RBAC):
+O sistema usa controle de acesso baseado em papéis (RBAC):
 
-| Role               | Permissões                                                                  |
-| :----------------- | :--------------------------------------------------------------------------- |
-| **Admin**    | Controle total: configurações, usuários, financeiro e todos os módulos.  |
-| **Gerente**  | Acesso a relatórios financeiros e operações, sem configurações globais. |
-| **Operador** | Acesso restrito a vendas, agenda e cadastros operacionais.                   |
+| Role | Permissões |
+| :-- | :-- |
+| **Admin** | Controle total: configurações, usuários, financeiro e todos os módulos. |
+| **Gerente** | Relatórios financeiros e operações, sem acesso a configurações globais. |
+| **Operador** | Restrito a vendas, agenda e cadastros operacionais. |
 
 ---
 
-## 📥 Início Rápido
+## Início rápido
 
 ### Pré-requisitos
 
-- **Python 3.10+** instalado e configurado no PATH.
-- Conexão com a internet (banco de dados hospedado na nuvem).
+- **Python 3.10+** instalado e no PATH.
+- Conexão com a internet (o banco de dados fica na nuvem).
 
 ### Execução (Windows)
 
@@ -90,38 +91,45 @@ O sistema implementa controle de acesso baseado em papéis (RBAC):
 INICIAR_LOJA.bat
 ```
 
-O sistema será iniciado automaticamente e abrirá no navegador em `http://localhost:5000`.
+O sistema sobe sozinho e abre no navegador em `http://localhost:5000`.
 
-> Para instruções técnicas detalhadas sobre ambientes e desenvolvimento, consulte o [Guia do Desenvolvedor](./DEVELOPER.md).
+> Para detalhes técnicos de ambientes, banco de dados e fluxo de desenvolvimento, escrevi um guia à parte: [DEVELOPER.md](./DEVELOPER.md).
 
 ---
 
-## 📂 Estrutura do Projeto
+## 📂 Como está organizado o repositório
 
 ```
 Dycore/
-├── app.py                      # API Flask — rotas, autenticação e lógica de negócio
-├── database.py                 # Camada de dados — PostgreSQL com suporte multi-ambiente
-├── pdf_generator.py            # Motor de geração de recibos e contratos em PDF
+├── app.py                      # API Flask — rotas, autenticação e regras de negócio
+├── database.py                 # Camada de dados — PostgreSQL multi-ambiente
+├── pdf_generator.py            # Geração de recibos, contratos e orçamentos em PDF
 ├── auth.py                     # Middleware de autenticação JWT
+├── requirements.txt            # Dependências Python do backend
+├── .env.example                # Modelo de variáveis de ambiente
 ├── INICIAR_LOJA.bat            # Inicialização rápida (Produção)
 ├── INICIAR_DEV.bat             # Inicialização rápida (Desenvolvimento)
-├── decor-venue-flow-main/      # Frontend React/Vite/TypeScript
-│   ├── src/
-│   │   ├── pages/              # Telas do sistema (Dashboard, PDV, Agenda...)
-│   │   ├── components/         # Componentes reutilizáveis (Sidebar, Modais, UI)
-│   │   └── lib/                # Utilitários (API client, formatadores, navegação)
-│   └── dist/                   # Build otimizado servido pelo Flask
-├── landing-page/               # Landing page institucional
-└── docs/                       # PDFs gerados pelo sistema (recibos, contratos)
+├── decor-venue-flow-main/      # Frontend React/Vite/TypeScript do sistema em si
+│   └── src/
+│       ├── pages/               # Telas (Dashboard, PDV, Agenda, Locações...)
+│       ├── components/          # Componentes reutilizáveis (Sidebar, Modais, UI)
+│       └── lib/                 # API client, formatadores, navegação
+├── landing-page/                # Site institucional — projeto React/Vite separado do sistema
+├── image/                       # Logo, favicon e capturas usadas neste README
+└── _archive/                    # Scripts de correção e documentos de planejamento antigos, mantidos como histórico
 ```
+
+Duas observações sobre essa estrutura, para quem for explorar o código:
+
+- **`decor-venue-flow-main/` não é a landing page** — é o frontend do sistema de gestão propriamente dito. A `landing-page/` é um projeto React separado, usado só para a página de apresentação do produto.
+- **`_archive/`** guarda scripts pontuais de correção e documentos estratégicos de fases anteriores do projeto. Não faz parte do sistema em execução — deixei ali como registro histórico das decisões técnicas.
 
 ---
 
 <div align="center">
 
-Idealizado e desenvolvido por **Ed****y Carlos Santana** 💜
+Idealizado e desenvolvido por **Edy Carlos Santana** 💜
 
-**Dycore - 2026**
+**Dycore — 2026**
 
 </div>
